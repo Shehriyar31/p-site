@@ -20,6 +20,10 @@ const SignUpForm = ({ onSignupComplete }) => {
       alert('Please fill all required fields');
       return;
     }
+    if (password.length < 8) {
+      alert('Password must be at least 8 characters long');
+      return;
+    }
     // Mark signup as completed and navigate to payment
     if (onSignupComplete) {
       onSignupComplete();
@@ -119,6 +123,7 @@ const SignUpForm = ({ onSignupComplete }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="form-input"
                     id="password"
+                    minLength={8}
                     required
                   />
                   <label htmlFor="password" className={`input-label ${password ? 'active' : ''}`}>
