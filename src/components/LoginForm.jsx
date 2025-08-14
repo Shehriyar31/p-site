@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import './Common.css';
+import './ForceRefresh.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const LoginForm = () => {
