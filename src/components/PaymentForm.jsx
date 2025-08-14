@@ -21,7 +21,7 @@ const PaymentForm = () => {
     sadapay: {
       name: 'SadaPay',
       accountName: 'Sumera',
-      accountNumber: '0333044418'
+      accountNumber: '03333044418'
     },
     bank: {
       name: 'Bank Account',
