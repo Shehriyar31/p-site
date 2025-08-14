@@ -1,10 +1,12 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
 import logo from '../assets/logo.png';
 import './Common.css';
 import './ForceRefresh.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'react-toastify/dist/ReactToastify.css';
 
 const SignUpForm = ({ onSignupComplete }) => {
   const navigate = useNavigate();
@@ -17,18 +19,31 @@ const SignUpForm = ({ onSignupComplete }) => {
   const handleSignUp = (e) => {
     e.preventDefault();
     if (!fullName || !username || !email || !phone || !password) {
-      alert('Please fill all required fields');
+      toast.error('Please fill all required fields', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
     if (password.length < 8) {
-      alert('Password must be at least 8 characters long');
+      toast.error('Password must be at least 8 characters long', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
+    toast.success('Account created successfully! Redirecting to payment...', {
+      position: "top-right",
+      autoClose: 2000,
+      theme: "dark"
+    });
     // Mark signup as completed and navigate to payment
     if (onSignupComplete) {
       onSignupComplete();
     }
-    navigate('/payment');
+    setTimeout(() => navigate('/payment'), 1000);
   };
 
   return (
@@ -145,6 +160,7 @@ const SignUpForm = ({ onSignupComplete }) => {
           </Col>
         </Row>
       </Container>
+      <ToastContainer />
     </div>
   );
 };

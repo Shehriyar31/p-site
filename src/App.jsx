@@ -4,6 +4,8 @@ import LoginForm from './components/LoginForm'
 import SignUpForm from './components/SignUpForm'
 import PaymentForm from './components/PaymentForm'
 import SuccessPage from './components/SuccessPage'
+import AdminPanel from './components/AdminPanel'
+import UsersPage from './components/UsersPage'
 import ErrorPage from './components/ErrorPage'
 import Preloader from './components/Preloader'
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -32,6 +34,8 @@ function App() {
         <Route path="/signup" element={<SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
         <Route path="/payment" element={signupCompleted ? <PaymentForm /> : <SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
         <Route path="/success" element={<SuccessPage />} />
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </Router>

@@ -1,22 +1,46 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
 import logo from '../assets/logo.png';
 import './Common.css';
 import './ForceRefresh.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'react-toastify/dist/ReactToastify.css';
 
 const LoginForm = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (!username || !password) {
-      alert('Please fill all required fields');
+      toast.error('Please fill all required fields', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
-    // Login logic here
+    
+    // Check admin credentials (case insensitive)
+    if (username.toLowerCase() === 'gillanibhai' && password === 'syedmoiz999$7') {
+      toast.success('Login successful! Redirecting to admin panel...', {
+        position: "top-right",
+        autoClose: 2000,
+        theme: "dark"
+      });
+      setTimeout(() => navigate('/admin'), 1000);
+      return;
+    }
+    
+    // Regular user login logic here
+    toast.error('Invalid credentials', {
+      position: "top-right",
+      autoClose: 3000,
+      theme: "dark"
+    });
   };
 
   return (
@@ -77,6 +101,7 @@ const LoginForm = () => {
           </Col>
         </Row>
       </Container>
+      <ToastContainer />
     </div>
   );
 };

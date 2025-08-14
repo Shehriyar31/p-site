@@ -1,6 +1,8 @@
 import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import logo from '../assets/logo.png';
 import './Common.css';
 import './PaymentForm.css';
@@ -34,19 +36,36 @@ const PaymentForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!paymentMethod) {
-      alert('Please select a payment method');
+      toast.error('Please select a payment method', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
     if (!trxId.trim()) {
-      alert('Please enter transaction ID');
+      toast.error('Please enter transaction ID', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
     if (!screenshot) {
-      alert('Please upload screenshot');
+      toast.error('Please upload screenshot', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
+    toast.success('Payment verification submitted successfully!', {
+      position: "top-right",
+      autoClose: 2000,
+      theme: "dark"
+    });
     // Navigate to success page
-    navigate('/success');
+    setTimeout(() => navigate('/success'), 1000);
   };
 
   const handleFileChange = (e) => {
@@ -163,6 +182,7 @@ const PaymentForm = () => {
           </Col>
         </Row>
       </Container>
+      <ToastContainer />
     </div>
   );
 };
