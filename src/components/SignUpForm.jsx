@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 import './Common.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
-const SignUpForm = () => {
+const SignUpForm = ({ onSignupComplete }) => {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -19,7 +19,10 @@ const SignUpForm = () => {
       alert('Please fill all required fields');
       return;
     }
-    // Navigate to payment form after validation
+    // Mark signup as completed and navigate to payment
+    if (onSignupComplete) {
+      onSignupComplete();
+    }
     navigate('/payment');
   };
 

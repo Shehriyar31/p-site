@@ -9,6 +9,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 
 function App() {
   const [loading, setLoading] = useState(true)
+  const [signupCompleted, setSignupCompleted] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -27,8 +28,8 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginForm />} />
         <Route path="/login" element={<LoginForm />} />
-        <Route path="/signup" element={<SignUpForm />} />
-        <Route path="/payment" element={<PaymentForm />} />
+        <Route path="/signup" element={<SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
+        <Route path="/payment" element={signupCompleted ? <PaymentForm /> : <SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </Router>
