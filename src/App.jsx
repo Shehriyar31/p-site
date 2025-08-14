@@ -1,12 +1,14 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import LoginForm from './components/LoginForm'
-import SignUpForm from './components/SignUpForm'
-import PaymentForm from './components/PaymentForm'
-import SuccessPage from './components/SuccessPage'
-import AdminPanel from './components/AdminPanel'
-import UsersPage from './components/UsersPage'
-import ErrorPage from './components/ErrorPage'
+import LoginForm from './auth/LoginForm'
+import SignUpForm from './auth/SignUpForm'
+import PaymentForm from './auth/PaymentForm'
+import SuccessPage from './auth/SuccessPage'
+import AdminPanel from './pages/AdminPanel'
+import UsersPage from './pages/UsersPage'
+import RequestsPage from './pages/RequestsPage'
+import CashPage from './pages/CashPage'
+import ErrorPage from './error/ErrorPage'
 import Preloader from './components/Preloader'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -36,6 +38,8 @@ function App() {
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/requests" element={<RequestsPage />} />
+        <Route path="/cash" element={<CashPage />} />
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </Router>

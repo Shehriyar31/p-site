@@ -1,8 +1,8 @@
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
-import './Common.css';
-import './ForceRefresh.css';
+import '../components/Common.css';
+import '../components/ForceRefresh.css';
 
 const SuccessPage = () => {
   return (

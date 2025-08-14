@@ -1,8 +1,8 @@
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
-import './Common.css';
-import './ErrorPage.css';
+import '../components/Common.css';
+import '../components/ErrorPage.css';
 
 const ErrorPage = () => {
   return (

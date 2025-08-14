@@ -1,24 +1,24 @@
-import { Container, Row, Col, Card, Button, Table, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import logo from '../assets/logo.png';
-import './Common.css';
-import './AdminPanel.css';
-import './ForceRefresh.css';
+import '../components/Common.css';
+import '../components/AdminPanel.css';
+import '../components/ForceRefresh.css';
 import 'react-toastify/dist/ReactToastify.css';
 
-const UsersPage = () => {
-  const [users] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '03001234567', status: 'Pending', paymentMethod: 'Easypaisa', joinDate: '2024-01-15' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '03007654321', status: 'Approved', paymentMethod: 'SadaPay', joinDate: '2024-01-14' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', phone: '03009876543', status: 'Pending', paymentMethod: 'Bank Account', joinDate: '2024-01-13' },
-    { id: 4, name: 'Sarah Wilson', email: 'sarah@example.com', phone: '03005432109', status: 'Approved', paymentMethod: 'Easypaisa', joinDate: '2024-01-12' },
-    { id: 5, name: 'Ahmed Ali', email: 'ahmed@example.com', phone: '03002468135', status: 'Rejected', paymentMethod: 'SadaPay', joinDate: '2024-01-11' }
+const RequestsPage = () => {
+  const [requests] = useState([
+    { id: 1, user: 'Alice Brown', type: 'Deposit', amount: '$50', status: 'Pending', date: '2024-01-15' },
+    { id: 2, user: 'Bob Wilson', type: 'Withdraw', amount: '$100', status: 'Approved', date: '2024-01-14' },
+    { id: 3, user: 'Carol Davis', type: 'Deposit', amount: '$75', status: 'Pending', date: '2024-01-13' },
+    { id: 4, user: 'David Miller', type: 'Withdraw', amount: '$200', status: 'Rejected', date: '2024-01-12' },
+    { id: 5, user: 'Emma Wilson', type: 'Deposit', amount: '$150', status: 'Approved', date: '2024-01-11' }
   ]);
 
   const handleApprove = (id) => {
-    toast.success(`User ${id} approved successfully!`, {
+    toast.success(`Request ${id} approved successfully!`, {
       position: "top-right",
       autoClose: 3000,
       theme: "dark"
@@ -26,7 +26,7 @@ const UsersPage = () => {
   };
 
   const handleReject = (id) => {
-    toast.error(`User ${id} rejected!`, {
+    toast.error(`Request ${id} rejected!`, {
       position: "top-right",
       autoClose: 3000,
       theme: "dark"
@@ -34,8 +34,8 @@ const UsersPage = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      toast.success(`User ${id} deleted successfully!`, {
+    if (window.confirm('Are you sure you want to delete this request?')) {
+      toast.success(`Request ${id} deleted successfully!`, {
         position: "top-right",
         autoClose: 3000,
         theme: "dark"
@@ -54,7 +54,7 @@ const UsersPage = () => {
                   <div className="d-flex align-items-center">
                     <img src={logo} alt="Logo" className="admin-logo me-3" style={{width: '50px', height: '50px'}} />
                     <div>
-                      <h2 className="text-white mb-0 header-title">Users Management</h2>
+                      <h2 className="text-white mb-0 header-title">Deposit/Withdraw Requests</h2>
                       <small className="text-warning">ProfitPro Admin Panel</small>
                     </div>
                   </div>
@@ -86,9 +86,9 @@ const UsersPage = () => {
             <Card className="admin-card">
               <Card.Body>
                 <div className="d-flex align-items-center">
-                  <i className="bi bi-people-fill text-warning me-3" style={{fontSize: '30px'}}></i>
+                  <i className="bi bi-arrow-left-right text-warning me-3" style={{fontSize: '30px'}}></i>
                   <div>
-                    <h6 className="text-warning mb-1">Total Users</h6>
+                    <h6 className="text-warning mb-1">Total Requests</h6>
                     <h3 className="text-white mb-0">5</h3>
                   </div>
                 </div>
@@ -140,65 +140,62 @@ const UsersPage = () => {
           <Col>
             <Card className="admin-card">
               <Card.Header>
-                <div className="d-flex justify-content-between align-items-center">
-                  <h5 className="text-warning mb-0">All Users</h5>
-                  <Button className="login-button" style={{border: 'none'}}>
-                    <i className="bi bi-plus-circle me-2"></i>Add New User
-                  </Button>
-                </div>
+                <h5 className="text-warning mb-0">All Requests</h5>
               </Card.Header>
               <Card.Body className="p-0">
                 <div className="users-table-container">
-                  {users.map((user, index) => (
-                    <div key={user.id} className="user-row">
+                  {requests.map((request, index) => (
+                    <div key={request.id} className="user-row">
                       <div className="user-id">
                         <span className="id-badge">#{index + 1}</span>
                       </div>
                       <div className="user-info">
                         <div className="user-avatar">
-                          <i className="bi bi-person-circle text-warning"></i>
+                          <i className={`bi ${request.type === 'Deposit' ? 'bi-arrow-down-circle' : 'bi-arrow-up-circle'} text-warning`}></i>
                         </div>
                         <div className="user-details">
-                          <h6 className="user-name">{user.name}</h6>
-                          <p className="user-email">{user.email}</p>
-                          <p className="user-phone">{user.phone}</p>
+                          <h6 className="user-name">{request.user}</h6>
+                          <p className="user-email">{request.type} Request</p>
+                          <p className="user-phone">{request.amount}</p>
                         </div>
                       </div>
                       <div className="user-meta">
                         <div className="meta-item">
-                          <span className="meta-label">Payment:</span>
-                          <Badge bg="info" className="ms-2">{user.paymentMethod}</Badge>
+                          <span className="meta-label">Type:</span>
+                          <Badge bg={request.type === 'Deposit' ? 'info' : 'secondary'} className="ms-2">
+                            {request.type}
+                          </Badge>
                         </div>
                         <div className="meta-item">
-                          <span className="meta-label">Joined:</span>
-                          <span className="meta-value">{user.joinDate}</span>
+                          <span className="meta-label">Date:</span>
+                          <span className="meta-value">{request.date}</span>
                         </div>
                         <div className="meta-item">
                           <span className="meta-label">Status:</span>
                           <Badge 
-                            bg={user.status === 'Approved' ? 'success' : user.status === 'Rejected' ? 'danger' : 'warning'}
+                            bg={request.status === 'Approved' ? 'success' : request.status === 'Rejected' ? 'danger' : 'warning'}
                             className="ms-2"
                           >
-                            {user.status}
+                            {request.status}
                           </Badge>
                         </div>
                       </div>
                       <div className="user-actions">
-                        {user.status === 'Pending' && (
+                        {request.status === 'Pending' && (
                           <>
                             <Button 
                               size="sm" 
                               className="action-btn approve-btn"
-                              onClick={() => handleApprove(user.id)}
-                              title="Approve User"
+                              onClick={() => handleApprove(request.id)}
+                              title="Approve Request"
                             >
                               <i className="bi bi-check"></i>
                             </Button>
                             <Button 
                               size="sm" 
                               className="action-btn reject-btn"
-                              onClick={() => handleReject(user.id)}
-                              title="Reject User"
+                              onClick={() => handleReject(request.id)}
+                              title="Reject Request"
                             >
                               <i className="bi bi-x"></i>
                             </Button>
@@ -207,15 +204,15 @@ const UsersPage = () => {
                         <Button 
                           size="sm" 
                           className="action-btn edit-btn"
-                          title="Edit User"
+                          title="View Details"
                         >
-                          <i className="bi bi-pencil"></i>
+                          <i className="bi bi-eye"></i>
                         </Button>
                         <Button 
                           size="sm" 
                           className="action-btn delete-btn"
-                          onClick={() => handleDelete(user.id)}
-                          title="Delete User"
+                          onClick={() => handleDelete(request.id)}
+                          title="Delete Request"
                         >
                           <i className="bi bi-trash"></i>
                         </Button>
@@ -233,4 +230,4 @@ const UsersPage = () => {
   );
 };
 
-export default UsersPage;
+export default RequestsPage;

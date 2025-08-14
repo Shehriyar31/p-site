@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import logo from '../assets/logo.png';
-import './Common.css';
-import './ForceRefresh.css';
+import '../components/Common.css';
+import '../components/ForceRefresh.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'react-toastify/dist/ReactToastify.css';
 
