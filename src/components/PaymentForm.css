@@ -97,3 +97,19 @@
   border: 1px solid rgba(255, 99, 71, 0.3);
   border-radius: 6px;
 }
+
+.payment-select option {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+  padding: 10px !important;
+}
+
+.payment-select option:hover {
+  background-color: #ff8c00 !important;
+  color: #ffffff !important;
+}
+
+.payment-select option:checked {
+  background-color: #ff8c00 !important;
+  color: #ffffff !important;
+}

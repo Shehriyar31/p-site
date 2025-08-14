@@ -1,14 +1,53 @@
 import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import './Common.css';
 import './PaymentForm.css';
 import './ForceRefresh.css';
 
 const PaymentForm = () => {
+  const navigate = useNavigate();
   const [trxId, setTrxId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('');
+
+  const paymentOptions = {
+    easypaisa: {
+      name: 'Easypaisa',
+      accountName: 'Noshaba',
+      accountNumber: '03162515990'
+    },
+    sadapay: {
+      name: 'SadaPay',
+      accountName: 'Sumera',
+      accountNumber: '0333044418'
+    },
+    bank: {
+      name: 'Bank Account',
+      accountName: 'Sumera',
+      accountNumber: '00300112775624',
+      bankName: 'Meezan Bank'
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!paymentMethod) {
+      alert('Please select a payment method');
+      return;
+    }
+    if (!trxId.trim()) {
+      alert('Please enter transaction ID');
+      return;
+    }
+    if (!screenshot) {
+      alert('Please upload screenshot');
+      return;
+    }
+    // Navigate to success page
+    navigate('/success');
+  };
 
   const handleFileChange = (e) => {
     setScreenshot(e.target.files[0]);
@@ -37,32 +76,51 @@ const PaymentForm = () => {
               </div>
 
               <div className="payment-info">
-                <Card className="bank-info-card mb-4">
-                  <Card.Body>
-                    <h5 className="bank-title">Bank Details</h5>
-                    <div className="bank-details">
-                      <div className="bank-item">
-                        <strong>Account Number:</strong> 1234567890123456
+                <div className="mb-4">
+                  <Form.Select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="form-input payment-select"
+                    id="paymentMethod"
+                    required
+                  >
+                    <option value="">Select Payment Method</option>
+                    <option value="easypaisa">Easypaisa</option>
+                    <option value="sadapay">SadaPay</option>
+                    <option value="bank">Bank Account</option>
+                  </Form.Select>
+                </div>
+
+                {paymentMethod && (
+                  <Card className="bank-info-card mb-4">
+                    <Card.Body>
+                      <h5 className="bank-title">{paymentOptions[paymentMethod].name} Details</h5>
+                      <div className="bank-details">
+                        <div className="bank-item">
+                          <strong>Account Number:</strong> {paymentOptions[paymentMethod].accountNumber}
+                        </div>
+                        <div className="bank-item">
+                          <strong>Account Title:</strong> {paymentOptions[paymentMethod].accountName}
+                        </div>
+                        {paymentOptions[paymentMethod].bankName && (
+                          <div className="bank-item">
+                            <strong>Bank Name:</strong> {paymentOptions[paymentMethod].bankName}
+                          </div>
+                        )}
                       </div>
-                      <div className="bank-item">
-                        <strong>Account Title:</strong> ProfitPro Solutions
-                      </div>
-                      <div className="bank-item">
-                        <strong>Bank Name:</strong> HBL Bank
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
+                    </Card.Body>
+                  </Card>
+                )}
 
                 <div className="payment-instructions">
                   <h6 className="instruction-title">Instructions:</h6>
                   <p className="instruction-text">
-                    Send <strong>PKR 750</strong> to the above account and provide your transaction ID with screenshot proof below.
+                    Send <strong>3$ (885 PKR)</strong> to the selected account and provide your transaction ID with screenshot proof below.
                   </p>
                 </div>
               </div>
               
-              <Form className="login-form">
+              <Form className="login-form" onSubmit={handleSubmit}>
                 <div className="input-wrapper">
                   <Form.Control
                     type="text"
@@ -70,6 +128,7 @@ const PaymentForm = () => {
                     onChange={(e) => setTrxId(e.target.value)}
                     className="form-input"
                     id="trxId"
+                    required
                   />
                   <label htmlFor="trxId" className={`input-label ${trxId ? 'active' : ''}`}>
                     Transaction ID
@@ -83,6 +142,7 @@ const PaymentForm = () => {
                     onChange={handleFileChange}
                     className="form-input file-input"
                     id="screenshot"
+                    required
                   />
                   <label htmlFor="screenshot" className="input-label active">
                     Upload Screenshot
