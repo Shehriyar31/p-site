@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import './Common.css';
 import './PaymentForm.css';
+import './ForceRefresh.css';
 
 const PaymentForm = () => {
   const [trxId, setTrxId] = useState('');
