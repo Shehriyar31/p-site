@@ -62,7 +62,7 @@ const LoginForm = () => {
                   </label>
                 </div>
                 
-                <Button type="submit" className="login-button">
+                <Button style={{'border':'none'}} type="submit" className="login-button">
                   Sign In
                 </Button>
                 

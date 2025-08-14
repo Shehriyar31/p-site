@@ -89,7 +89,7 @@ const PaymentForm = () => {
                   </label>
                 </div>
                 
-                <Button className="login-button">
+                <Button style={{'border':'none'}} type="submit" className="login-button">
                   Submit Verification
                 </Button>
                 
