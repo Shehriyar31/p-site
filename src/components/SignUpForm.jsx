@@ -1,15 +1,27 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import './Common.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const SignUpForm = () => {
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleSignUp = (e) => {
+    e.preventDefault();
+    if (!fullName || !username || !email || !phone || !password) {
+      alert('Please fill all required fields');
+      return;
+    }
+    // Navigate to payment form after validation
+    navigate('/payment');
+  };
 
   return (
     <div className="login-wrapper">
@@ -25,7 +37,7 @@ const SignUpForm = () => {
                 <p>Join us today</p>
               </div>
               
-              <Form className="login-form">
+              <Form className="login-form" onSubmit={handleSignUp}>
                 <div className="input-wrapper">
                   <Form.Control
                     type="text"
@@ -33,6 +45,7 @@ const SignUpForm = () => {
                     onChange={(e) => setFullName(e.target.value)}
                     className="form-input"
                     id="fullName"
+                    required
                   />
                   <label htmlFor="fullName" className={`input-label ${fullName ? 'active' : ''}`}>
                     Full Name
@@ -46,6 +59,7 @@ const SignUpForm = () => {
                     onChange={(e) => setUsername(e.target.value)}
                     className="form-input"
                     id="username"
+                    required
                   />
                   <label htmlFor="username" className={`input-label ${username ? 'active' : ''}`}>
                     Username
@@ -59,6 +73,7 @@ const SignUpForm = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="form-input"
                     id="email"
+                    required
                   />
                   <label htmlFor="email" className={`input-label ${email ? 'active' : ''}`}>
                     Email
@@ -72,6 +87,7 @@ const SignUpForm = () => {
                     onChange={(e) => setPhone(e.target.value)}
                     className="form-input"
                     id="phone"
+                    required
                   />
                   <label htmlFor="phone" className={`input-label ${phone ? 'active' : ''}`}>
                     Phone Number
@@ -99,13 +115,14 @@ const SignUpForm = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="form-input"
                     id="password"
+                    required
                   />
                   <label htmlFor="password" className={`input-label ${password ? 'active' : ''}`}>
                     Password
                   </label>
                 </div>
                 
-                <Button className="login-button">
+                <Button type="submit" className="login-button">
                   Sign Up
                 </Button>
                 

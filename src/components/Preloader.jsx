@@ -1,4 +1,6 @@
 import logo from '../assets/logo.png';
+import './Common.css';
+import './Preloader.css';
 
 const Preloader = () => {
   return (

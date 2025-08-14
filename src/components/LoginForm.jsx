@@ -2,11 +2,21 @@ import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import './Common.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const LoginForm = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (!username || !password) {
+      alert('Please fill all required fields');
+      return;
+    }
+    // Login logic here
+  };
 
   return (
     <div className="login-wrapper">
@@ -22,7 +32,7 @@ const LoginForm = () => {
                 <p>Sign in to your account</p>
               </div>
               
-              <Form className="login-form">
+              <Form className="login-form" onSubmit={handleLogin}>
                 <div className="input-wrapper">
                   <Form.Control
                     type="text"
@@ -30,6 +40,7 @@ const LoginForm = () => {
                     onChange={(e) => setUsername(e.target.value)}
                     className="form-input"
                     id="username"
+                    required
                   />
                   <label htmlFor="username" className={`input-label ${username ? 'active' : ''}`}>
                     Username
@@ -43,13 +54,14 @@ const LoginForm = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="form-input"
                     id="password"
+                    required
                   />
                   <label htmlFor="password" className={`input-label ${password ? 'active' : ''}`}>
                     Password
                   </label>
                 </div>
                 
-                <Button className="login-button">
+                <Button type="submit" className="login-button">
                   Sign In
                 </Button>
                 
