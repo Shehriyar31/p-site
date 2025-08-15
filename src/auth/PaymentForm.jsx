@@ -2,6 +2,7 @@ import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
+import { requestAPI } from '../services/api';
 import 'react-toastify/dist/ReactToastify.css';
 import logo from '../assets/logo.png';
 import '../components/Common.css';
@@ -13,6 +14,7 @@ const PaymentForm = () => {
   const [trxId, setTrxId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const paymentOptions = {
     easypaisa: {
@@ -33,7 +35,7 @@ const PaymentForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!paymentMethod) {
       toast.error('Please select a payment method', {
@@ -59,13 +61,84 @@ const PaymentForm = () => {
       });
       return;
     }
-    toast.success('Payment verification submitted successfully!', {
-      position: "top-right",
-      autoClose: 2000,
-      theme: "dark"
-    });
-    // Navigate to success page
-    setTimeout(() => navigate('/success'), 1000);
+    
+    // Get pending user info
+    const userId = localStorage.getItem('pendingUserId');
+    const username = localStorage.getItem('pendingUsername');
+    
+    if (!userId) {
+      toast.error('Session expired. Please signup again.', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+      navigate('/signup');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Convert and compress screenshot to base64
+      const convertToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = () => {
+            // Resize image to max 800px width to reduce size
+            const maxWidth = 800;
+            const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+            canvas.width = img.width * ratio;
+            canvas.height = img.height * ratio;
+            
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
+          };
+          
+          img.onerror = reject;
+          img.src = URL.createObjectURL(file);
+        });
+      };
+      
+      const screenshotBase64 = await convertToBase64(screenshot);
+      
+      const requestData = {
+        userId,
+        type: 'Deposit',
+        amount: 865, // ₨865 activation fee
+        paymentMethod: paymentOptions[paymentMethod].name,
+        transactionId: trxId,
+        screenshot: screenshotBase64
+      };
+      
+      const response = await requestAPI.createRequest(requestData);
+      
+      if (response.data.success) {
+        // Store user credentials for login
+        localStorage.setItem('newUserCredentials', JSON.stringify({ username, userId }));
+        
+        toast.success('Deposit request submitted! Please wait for admin approval to access your dashboard.', {
+          position: "top-right",
+          autoClose: 4000,
+          theme: "dark"
+        });
+        
+        // Navigate to success page
+        setTimeout(() => navigate('/success'), 1000);
+      }
+    } catch (error) {
+      console.error('Submit request error:', error);
+      const message = error.response?.data?.message || 'Failed to submit request';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -134,7 +207,7 @@ const PaymentForm = () => {
                 <div className="payment-instructions">
                   <h6 className="instruction-title">Instructions:</h6>
                   <p className="instruction-text">
-                    Send <strong>3$ (885 PKR)</strong> to the selected account and provide your transaction ID with screenshot proof below.
+                    Send <strong>3$ (865 PKR)</strong> to the selected account and provide your transaction ID with screenshot proof below.
                   </p>
                 </div>
               </div>
@@ -168,8 +241,8 @@ const PaymentForm = () => {
                   </label>
                 </div>
                 
-                <Button style={{'border':'none'}} type="submit" className="login-button">
-                  Submit Verification
+                <Button style={{'border':'none'}} type="submit" className="login-button" disabled={loading}>
+                  {loading ? 'Submitting...' : 'Submit Verification'}
                 </Button>
                 
                 <div className="forgot-password">

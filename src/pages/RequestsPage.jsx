@@ -1,46 +1,128 @@
-import { Container, Row, Col, Card, Button, Badge } from 'react-bootstrap';
-import { useState } from 'react';
+import { Container, Row, Col, Card, Button, Badge, Modal, Spinner } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
+import { requestAPI } from '../services/api';
 import logo from '../assets/logo.png';
 import '../components/Common.css';
 import '../components/AdminPanel.css';
 import '../components/ForceRefresh.css';
+import '../components/RequestDetails.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 const RequestsPage = () => {
-  const [requests] = useState([
-    { id: 1, user: 'Alice Brown', type: 'Deposit', amount: '$50', status: 'Pending', date: '2024-01-15' },
-    { id: 2, user: 'Bob Wilson', type: 'Withdraw', amount: '$100', status: 'Approved', date: '2024-01-14' },
-    { id: 3, user: 'Carol Davis', type: 'Deposit', amount: '$75', status: 'Pending', date: '2024-01-13' },
-    { id: 4, user: 'David Miller', type: 'Withdraw', amount: '$200', status: 'Rejected', date: '2024-01-12' },
-    { id: 5, user: 'Emma Wilson', type: 'Deposit', amount: '$150', status: 'Approved', date: '2024-01-11' }
-  ]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
-  const handleApprove = (id) => {
-    toast.success(`Request ${id} approved successfully!`, {
-      position: "top-right",
-      autoClose: 3000,
-      theme: "dark"
-    });
-  };
-
-  const handleReject = (id) => {
-    toast.error(`Request ${id} rejected!`, {
-      position: "top-right",
-      autoClose: 3000,
-      theme: "dark"
-    });
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this request?')) {
-      toast.success(`Request ${id} deleted successfully!`, {
+  // Fetch requests from MongoDB
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const response = await requestAPI.getRequests();
+      if (response.data.success) {
+        setRequests(response.data.requests);
+      }
+    } catch (error) {
+      console.error('Fetch requests error:', error);
+      toast.error('Failed to load requests', {
         position: "top-right",
         autoClose: 3000,
         theme: "dark"
       });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Load requests on component mount
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+
+  const handleApprove = async (id) => {
+    try {
+      setActionLoading(true);
+      const response = await requestAPI.approveRequest(id);
+      
+      if (response.data.success) {
+        toast.success('Deposit approved! User account activated successfully.', {
+          position: "top-right",
+          autoClose: 3000,
+          theme: "dark"
+        });
+        fetchRequests(); // Refresh requests list
+      }
+    } catch (error) {
+      console.error('Approve request error:', error);
+      toast.error('Failed to approve request', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      setActionLoading(true);
+      const response = await requestAPI.rejectRequest(id);
+      
+      if (response.data.success) {
+        toast.error('Deposit request rejected and deleted!', {
+          position: "top-right",
+          autoClose: 3000,
+          theme: "dark"
+        });
+        fetchRequests(); // Refresh requests list
+      }
+    } catch (error) {
+      console.error('Reject request error:', error);
+      toast.error('Failed to reject request', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this request?')) {
+      try {
+        setActionLoading(true);
+        const response = await requestAPI.deleteRequest(id);
+        
+        if (response.data.success) {
+          toast.success('Request deleted successfully!', {
+            position: "top-right",
+            autoClose: 3000,
+            theme: "dark"
+          });
+          fetchRequests(); // Refresh requests list
+        }
+      } catch (error) {
+        console.error('Delete request error:', error);
+        toast.error('Failed to delete request', {
+          position: "top-right",
+          autoClose: 3000,
+          theme: "dark"
+        });
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+
+  const handleViewDetails = (request) => {
+    setSelectedRequest(request);
+    setShowDetailsModal(true);
   };
 
   return (
@@ -61,6 +143,16 @@ const RequestsPage = () => {
                 </div>
                 <div className="col-lg-6 col-md-12">
                   <div className="d-flex justify-content-lg-end justify-content-center gap-2">
+                    <Button 
+                      variant="outline-info" 
+                      size="sm"
+                      onClick={fetchRequests}
+                      disabled={loading}
+                      className="me-2"
+                    >
+                      <i className="bi bi-arrow-clockwise me-1"></i>
+                      <span className="d-none d-sm-inline">{loading ? 'Refreshing...' : 'Refresh'}</span>
+                    </Button>
                     <Link to="/admin">
                       <Button variant="outline-warning" size="sm">
                         <i className="bi bi-arrow-left me-1"></i>
@@ -89,7 +181,7 @@ const RequestsPage = () => {
                   <i className="bi bi-arrow-left-right text-warning me-3" style={{fontSize: '30px'}}></i>
                   <div>
                     <h6 className="text-warning mb-1">Total Requests</h6>
-                    <h3 className="text-white mb-0">5</h3>
+                    <h3 className="text-white mb-0">{requests.length}</h3>
                   </div>
                 </div>
               </Card.Body>
@@ -102,7 +194,7 @@ const RequestsPage = () => {
                   <i className="bi bi-clock-fill text-warning me-3" style={{fontSize: '30px'}}></i>
                   <div>
                     <h6 className="text-warning mb-1">Pending</h6>
-                    <h3 className="text-white mb-0">2</h3>
+                    <h3 className="text-white mb-0">{requests.filter(r => r.status === 'Pending').length}</h3>
                   </div>
                 </div>
               </Card.Body>
@@ -115,7 +207,7 @@ const RequestsPage = () => {
                   <i className="bi bi-check-circle-fill text-success me-3" style={{fontSize: '30px'}}></i>
                   <div>
                     <h6 className="text-warning mb-1">Approved</h6>
-                    <h3 className="text-white mb-0">2</h3>
+                    <h3 className="text-white mb-0">{requests.filter(r => r.status === 'Approved').length}</h3>
                   </div>
                 </div>
               </Card.Body>
@@ -128,7 +220,7 @@ const RequestsPage = () => {
                   <i className="bi bi-x-circle-fill text-danger me-3" style={{fontSize: '30px'}}></i>
                   <div>
                     <h6 className="text-warning mb-1">Rejected</h6>
-                    <h3 className="text-white mb-0">1</h3>
+                    <h3 className="text-white mb-0">{requests.filter(r => r.status === 'Rejected').length}</h3>
                   </div>
                 </div>
               </Card.Body>
@@ -139,13 +231,28 @@ const RequestsPage = () => {
         <Row className="p-4">
           <Col>
             <Card className="admin-card">
-              <Card.Header>
+              <Card.Header className="d-flex justify-content-between align-items-center">
                 <h5 className="text-warning mb-0">All Requests</h5>
+                <div className="d-flex align-items-center">
+                  <div className="live-indicator me-2">
+                    <span className="live-dot" style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: '#28a745',
+                      borderRadius: '50%',
+                      marginRight: '5px',
+                      animation: 'pulse 2s infinite'
+                    }}></span>
+                    <small className="text-success">Live</small>
+                  </div>
+                  {loading && <Spinner animation="border" size="sm" variant="warning" />}
+                </div>
               </Card.Header>
               <Card.Body className="p-0">
                 <div className="users-table-container">
                   {requests.map((request, index) => (
-                    <div key={request.id} className="user-row">
+                    <div key={request._id} className="user-row">
                       <div className="user-id">
                         <span className="id-badge">#{index + 1}</span>
                       </div>
@@ -155,8 +262,8 @@ const RequestsPage = () => {
                         </div>
                         <div className="user-details">
                           <h6 className="user-name">{request.user}</h6>
-                          <p className="user-email">{request.type} Request</p>
-                          <p className="user-phone">{request.amount}</p>
+                          <p className="user-email">@{request.userId?.username || 'N/A'}</p>
+                          <p className="user-phone">₨{request.amount?.toLocaleString()}</p>
                         </div>
                       </div>
                       <div className="user-meta">
@@ -168,7 +275,7 @@ const RequestsPage = () => {
                         </div>
                         <div className="meta-item">
                           <span className="meta-label">Date:</span>
-                          <span className="meta-value">{request.date}</span>
+                          <span className="meta-value">{new Date(request.createdAt).toLocaleDateString()}</span>
                         </div>
                         <div className="meta-item">
                           <span className="meta-label">Status:</span>
@@ -186,16 +293,18 @@ const RequestsPage = () => {
                             <Button 
                               size="sm" 
                               className="action-btn approve-btn"
-                              onClick={() => handleApprove(request.id)}
+                              onClick={() => handleApprove(request._id)}
                               title="Approve Request"
+                              disabled={actionLoading}
                             >
                               <i className="bi bi-check"></i>
                             </Button>
                             <Button 
                               size="sm" 
                               className="action-btn reject-btn"
-                              onClick={() => handleReject(request.id)}
-                              title="Reject Request"
+                              onClick={() => handleReject(request._id)}
+                              title="Reject & Delete Request"
+                              disabled={actionLoading}
                             >
                               <i className="bi bi-x"></i>
                             </Button>
@@ -203,19 +312,23 @@ const RequestsPage = () => {
                         )}
                         <Button 
                           size="sm" 
-                          className="action-btn edit-btn"
+                          className="action-btn view-btn"
+                          onClick={() => handleViewDetails(request)}
                           title="View Details"
                         >
                           <i className="bi bi-eye"></i>
                         </Button>
-                        <Button 
-                          size="sm" 
-                          className="action-btn delete-btn"
-                          onClick={() => handleDelete(request.id)}
-                          title="Delete Request"
-                        >
-                          <i className="bi bi-trash"></i>
-                        </Button>
+                        {request.status === 'Rejected' && (
+                          <Button 
+                            size="sm" 
+                            className="action-btn delete-btn"
+                            onClick={() => handleDelete(request._id)}
+                            title="Delete Request"
+                            disabled={loading}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -225,6 +338,120 @@ const RequestsPage = () => {
           </Col>
         </Row>
       </Container>
+      
+      {/* Request Details Modal */}
+      <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" centered>
+        <Modal.Header closeButton style={{background: 'rgba(30, 30, 30, 0.95)', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+          <Modal.Title className="text-warning">Request Details - {selectedRequest?.user}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{background: 'rgba(30, 30, 30, 0.95)', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+          {selectedRequest && (
+            <div className="request-details">
+              <Row>
+                <Col md={6}>
+                  <div className="detail-section mb-4">
+                    <h6 className="text-warning mb-3">User Information</h6>
+                    <div className="detail-item">
+                      <span className="detail-label">Name:</span>
+                      <span className="detail-value">{selectedRequest.user}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Username:</span>
+                      <span className="detail-value">@{selectedRequest.userId?.username || 'N/A'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Phone:</span>
+                      <span className="detail-value">{selectedRequest.phone}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Payment Method:</span>
+                      <span className="detail-value">{selectedRequest.paymentMethod}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="detail-section">
+                    <h6 className="text-warning mb-3">Transaction Details</h6>
+                    <div className="detail-item">
+                      <span className="detail-label">Type:</span>
+                      <Badge bg={selectedRequest.type === 'Deposit' ? 'info' : 'secondary'} className="ms-2">
+                        {selectedRequest.type}
+                      </Badge>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Amount:</span>
+                      <span className="detail-value amount">₨{selectedRequest.amount?.toLocaleString()}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Transaction ID:</span>
+                      <span className="detail-value">{selectedRequest.transactionId}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Date:</span>
+                      <span className="detail-value">{new Date(selectedRequest.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Status:</span>
+                      <Badge 
+                        bg={selectedRequest.status === 'Approved' ? 'success' : selectedRequest.status === 'Rejected' ? 'danger' : 'warning'}
+                        className="ms-2"
+                      >
+                        {selectedRequest.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="detail-section">
+                    <h6 className="text-warning mb-3">Payment Screenshot</h6>
+                    <div className="screenshot-container">
+                      {selectedRequest.screenshot ? (
+                        <img 
+                          src={selectedRequest.screenshot} 
+                          alt="Payment Screenshot" 
+                          className="payment-screenshot"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                      ) : (
+                        <div className="text-warning">No screenshot available</div>
+                      )}
+                      <div style={{display: 'none'}} className="text-warning">Screenshot failed to load</div>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+              
+              {selectedRequest.status === 'Pending' && (
+                <div className="modal-actions mt-4 text-center">
+                  <Button 
+                    className="me-3 approve-btn"
+                    onClick={() => {
+                      handleApprove(selectedRequest._id);
+                      setShowDetailsModal(false);
+                    }}
+                    disabled={actionLoading}
+                  >
+                    <i className="bi bi-check me-2"></i>Approve Request
+                  </Button>
+                  <Button 
+                    className="reject-btn"
+                    onClick={() => {
+                      handleReject(selectedRequest._id);
+                      setShowDetailsModal(false);
+                    }}
+                    disabled={actionLoading}
+                  >
+                    <i className="bi bi-x me-2"></i>Reject & Delete
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+      
       <ToastContainer />
     </div>
   );

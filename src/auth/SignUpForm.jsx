@@ -2,6 +2,7 @@ import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
+import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
 import '../components/Common.css';
 import '../components/ForceRefresh.css';
@@ -15,8 +16,9 @@ const SignUpForm = ({ onSignupComplete }) => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     if (!fullName || !username || !email || !phone || !password) {
       toast.error('Please fill all required fields', {
@@ -34,16 +36,48 @@ const SignUpForm = ({ onSignupComplete }) => {
       });
       return;
     }
-    toast.success('Account created successfully! Redirecting to payment...', {
-      position: "top-right",
-      autoClose: 2000,
-      theme: "dark"
-    });
-    // Mark signup as completed and navigate to payment
-    if (onSignupComplete) {
-      onSignupComplete();
+    
+    setLoading(true);
+    
+    try {
+      const userData = {
+        name: fullName,
+        username,
+        email,
+        phone,
+        password
+      };
+      
+      const response = await authAPI.register(userData);
+      
+      if (response.data.success) {
+        // Store user info for payment
+        localStorage.setItem('pendingUserId', response.data.userId);
+        localStorage.setItem('pendingUsername', username);
+        
+        toast.success('Account created successfully! Please make your deposit to activate account.', {
+          position: "top-right",
+          autoClose: 3000,
+          theme: "dark"
+        });
+        
+        // Mark signup as completed and navigate to payment
+        if (onSignupComplete) {
+          onSignupComplete();
+        }
+        setTimeout(() => navigate('/payment'), 1000);
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      const message = error.response?.data?.message || 'Registration failed';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setLoading(false);
     }
-    setTimeout(() => navigate('/payment'), 1000);
   };
 
   return (
@@ -146,8 +180,8 @@ const SignUpForm = ({ onSignupComplete }) => {
                   </label>
                 </div>
                 
-                <Button style={{'border':'none'}} type="submit" className="login-button">
-                  Sign Up
+                <Button style={{border:'none'}} type="submit" className="login-button" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Sign Up'}
                 </Button>
                 
                 <div className="forgot-password">

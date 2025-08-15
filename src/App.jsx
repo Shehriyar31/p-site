@@ -8,8 +8,13 @@ import AdminPanel from './pages/AdminPanel'
 import UsersPage from './pages/UsersPage'
 import RequestsPage from './pages/RequestsPage'
 import CashPage from './pages/CashPage'
+import AnnouncementsPage from './pages/AnnouncementsPage'
+import ContactsPage from './pages/ContactsPage'
+import UserDashboard from './pages/UserDashboard'
 import ErrorPage from './error/ErrorPage'
 import Preloader from './components/Preloader'
+import ProtectedRoute from './components/ProtectedRoute'
+import { GlobalProvider } from './context/GlobalContext'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 function App() {
@@ -29,20 +34,25 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
+    <GlobalProvider>
+      <Router>
+        <Routes>
         <Route path="/" element={<LoginForm />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
         <Route path="/payment" element={signupCompleted ? <PaymentForm /> : <SignUpForm onSignupComplete={() => setSignupCompleted(true)} />} />
         <Route path="/success" element={<SuccessPage />} />
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/requests" element={<RequestsPage />} />
-        <Route path="/cash" element={<CashPage />} />
+        <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminPanel /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute>} />
+        <Route path="/requests" element={<ProtectedRoute requiredRole="admin"><RequestsPage /></ProtectedRoute>} />
+        <Route path="/cash" element={<ProtectedRoute requiredRole="admin"><CashPage /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute requiredRole="admin"><AnnouncementsPage /></ProtectedRoute>} />
+        <Route path="/contacts" element={<ProtectedRoute requiredRole="admin"><ContactsPage /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>} />
         <Route path="*" element={<ErrorPage />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </GlobalProvider>
   )
 }
 

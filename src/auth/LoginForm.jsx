@@ -1,7 +1,8 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
+import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
 import '../components/Common.css';
 import '../components/ForceRefresh.css';
@@ -12,8 +13,15 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    // Clear form when component mounts
+    setUsername('');
+    setPassword('');
+  }, []);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!username || !password) {
       toast.error('Please fill all required fields', {
@@ -23,24 +31,48 @@ const LoginForm = () => {
       });
       return;
     }
+
+    setLoading(true);
     
-    // Check admin credentials (case insensitive)
-    if (username.toLowerCase() === 'gillanibhai' && password === 'syedmoiz999$7') {
-      toast.success('Login successful! Redirecting to admin panel...', {
+    try {
+      const response = await authAPI.login({ username, password });
+      
+      if (response.data.success) {
+        const { token, user } = response.data;
+        
+        // Store token and user info
+        localStorage.setItem('token', token);
+        localStorage.setItem('userRole', user.role);
+        localStorage.setItem('username', user.name);
+        localStorage.setItem('userId', user.id);
+        localStorage.setItem('loginTime', Date.now().toString());
+        
+        toast.success('Login successful! Redirecting...', {
+          position: "top-right",
+          autoClose: 2000,
+          theme: "dark"
+        });
+        
+        // Redirect based on role
+        setTimeout(() => {
+          if (user.role === 'superadmin' || user.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/dashboard');
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      const message = error.response?.data?.message || 'Login failed';
+      toast.error(message, {
         position: "top-right",
-        autoClose: 2000,
+        autoClose: 3000,
         theme: "dark"
       });
-      setTimeout(() => navigate('/admin'), 1000);
-      return;
+    } finally {
+      setLoading(false);
     }
-    
-    // Regular user login logic here
-    toast.error('Invalid credentials', {
-      position: "top-right",
-      autoClose: 3000,
-      theme: "dark"
-    });
   };
 
   return (
@@ -65,6 +97,7 @@ const LoginForm = () => {
                     onChange={(e) => setUsername(e.target.value)}
                     className="form-input"
                     id="username"
+                    autoComplete="off"
                     required
                   />
                   <label htmlFor="username" className={`input-label ${username ? 'active' : ''}`}>
@@ -79,6 +112,7 @@ const LoginForm = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="form-input"
                     id="password"
+                    autoComplete="off"
                     required
                   />
                   <label htmlFor="password" className={`input-label ${password ? 'active' : ''}`}>
@@ -86,8 +120,8 @@ const LoginForm = () => {
                   </label>
                 </div>
                 
-                <Button style={{'border':'none'}} type="submit" className="login-button">
-                  Sign In
+                <Button style={{border:'none'}} type="submit" className="login-button" disabled={loading}>
+                  {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
                 
                 <div className="forgot-password">
@@ -96,6 +130,8 @@ const LoginForm = () => {
                     Sign Up
                   </Link>
                 </div>
+                
+
               </Form>
             </div>
           </Col>
