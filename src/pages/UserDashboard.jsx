@@ -548,6 +548,12 @@ const UserDashboard = () => {
                     >
                       <i className="bi bi-envelope me-2"></i>Contact
                     </Nav.Link>
+                    <Nav.Link 
+                      className={activeSection === 'joinus' ? 'active' : ''}
+                      onClick={() => setActiveSection('joinus')}
+                    >
+                      <i className="bi bi-people-fill me-2"></i>Join Us
+                    </Nav.Link>
                   </Nav>
                 </Navbar.Collapse>
               </Container>
@@ -1326,7 +1332,7 @@ const UserDashboard = () => {
                     ) : (
                       <div>
                         <Button variant="outline-warning" disabled>
-                          <i className="bi bi-clock me-2"></i>Already Spun Today
+                          <i className="bi bi-clock me-2"></i>Already Spin Today
                         </Button>
                         {spinnerData.nextSpinTime && (
                           <p className="text-warning mt-2 small">
@@ -1482,6 +1488,65 @@ const UserDashboard = () => {
                       <i className="bi bi-send me-2"></i>{loading ? 'Sending...' : 'Send Message'}
                     </Button>
                   </Form>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
+        {activeSection === 'joinus' && (
+          <Row className="p-4">
+            <Col>
+              <Card className="admin-card">
+                <Card.Header>
+                  <h5 className="text-warning mb-0">Join Our Community</h5>
+                </Card.Header>
+                <Card.Body>
+                  <div className="text-center py-5">
+                    <i className="bi bi-people-fill text-warning mb-4" style={{fontSize: '60px'}}></i>
+                    <h4 className="text-white mb-3">Stay Connected With Us!</h4>
+                    <p className="text-white mb-4">Join our official channels for updates, tips, and exclusive offers</p>
+                    
+                    <div className="d-flex justify-content-center gap-4">
+                      <div className="social-card p-4" style={{background: 'rgba(37, 211, 102, 0.1)', borderRadius: '15px', border: '1px solid rgba(37, 211, 102, 0.3)', cursor: 'pointer', transition: 'all 0.3s ease'}}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'translateY(-5px)';
+                          e.target.style.boxShadow = '0 8px 25px rgba(37, 211, 102, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onClick={() => {
+                          window.open('https://whatsapp.com/channel/0029VbAd9fEHQbS29KJ0EH1t', '_blank');
+                        }}>
+                        <i className="bi bi-whatsapp text-success mb-3" style={{fontSize: '50px'}}></i>
+                        <h5 className="text-white mb-2">WhatsApp</h5>
+                        <p className="text-white small mb-0">Join our WhatsApp channel</p>
+                      </div>
+                      
+                      <div className="social-card p-4" style={{background: 'rgba(0, 136, 204, 0.1)', borderRadius: '15px', border: '1px solid rgba(0, 136, 204, 0.3)', cursor: 'pointer', transition: 'all 0.3s ease'}}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'translateY(-5px)';
+                          e.target.style.boxShadow = '0 8px 25px rgba(0, 136, 204, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                        onClick={() => {
+                          window.open('https://t.me/profitpropk', '_blank');
+                        }}>
+                        <i className="bi bi-telegram text-primary mb-3" style={{fontSize: '50px'}}></i>
+                        <h5 className="text-white mb-2">Telegram</h5>
+                        <p className="text-white small mb-0">Join our Telegram channel</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                      <small className="text-white">Click on the icons above to join our official channels</small>
+                    </div>
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
