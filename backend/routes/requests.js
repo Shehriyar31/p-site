@@ -103,21 +103,22 @@ router.post('/:id/approve', async (req, res) => {
             let rewardGiven = false;
             
             const levelRewards = [
-              { level: 1, members: 10, usd: 5 },
-              { level: 2, members: 20, usd: 5 },
-              { level: 3, members: 50, usd: 5 },
-              { level: 4, members: 100, usd: 20 },
-              { level: 5, members: 200, usd: 50 },
-              { level: 6, members: 300, usd: 25 },
-              { level: 7, members: 400, usd: 25 },
-              { level: 8, members: 500, usd: 25 },
-              { level: 9, members: 600, usd: 25 },
-              { level: 10, members: 700, usd: 100 },
-              { level: 11, members: 800, usd: 25 },
-              { level: 12, members: 900, usd: 25 },
-              { level: 13, members: 1000, usd: 25 },
-              { level: 14, members: 1100, usd: 25 },
-              { level: 15, members: 1200, usd: 500 }
+              { level: 1, members: 5, usd: 2.5 },
+              { level: 2, members: 10, usd: 5 },
+              { level: 3, members: 20, usd: 5 },
+              { level: 4, members: 50, usd: 5 },
+              { level: 5, members: 100, usd: 20 },
+              { level: 6, members: 200, usd: 50 },
+              { level: 7, members: 300, usd: 25 },
+              { level: 8, members: 400, usd: 25 },
+              { level: 9, members: 500, usd: 25 },
+              { level: 10, members: 600, usd: 25 },
+              { level: 11, members: 700, usd: 100 },
+              { level: 12, members: 800, usd: 25 },
+              { level: 13, members: 900, usd: 25 },
+              { level: 14, members: 1000, usd: 25 },
+              { level: 15, members: 1100, usd: 25 },
+              { level: 16, members: 1200, usd: 500 }
             ];
             
             for (const reward of levelRewards) {
@@ -129,28 +130,31 @@ router.post('/:id/approve', async (req, res) => {
                 referrer.completedLevels.push(reward.level);
                 
                 const levelNames = {
-                  1: 'Starter Bronze',
-                  2: 'Bronze Plus', 
-                  3: 'Silver Entry',
-                  4: 'Silver Premium',
-                  5: 'Golden Badge',
-                  6: 'Golden Star',
-                  7: 'Golden Pro',
-                  8: 'Platinum Start',
-                  9: 'Platinum Plus',
-                  10: 'Platinum Elite',
-                  11: 'Diamond Entry',
-                  12: 'Diamond Plus',
-                  13: 'Diamond Pro',
-                  14: 'Royal Diamond',
-                  15: 'Crown Legend'
+                  1: 'Starter Bonus',
+                  2: 'Bronze Entry',
+                  3: 'Bronze Plus', 
+                  4: 'Silver Start',
+                  5: 'Silver Pro',
+                  6: 'Golden Entry',
+                  7: 'Golden Plus',
+                  8: 'Golden Pro',
+                  9: 'Platinum Entry',
+                  10: 'Platinum Plus',
+                  11: 'Platinum Elite',
+                  12: 'Diamond Entry',
+                  13: 'Diamond Plus',
+                  14: 'Diamond Pro',
+                  15: 'Royal Diamond',
+                  16: 'Crown Legend'
                 };
                 
                 referrer.transactions.push({
                   type: 'deposit',
                   amount: rewardPKR,
                   description: `🎉 Level ${reward.level} (${levelNames[reward.level]}) achieved! ${activeReferralCount} members - $${reward.usd} reward`,
-                  balanceAfter: referrer.balance
+                  balanceAfter: referrer.balance,
+                  date: new Date(),
+                  status: 'completed'
                 });
                 
                 rewardGiven = true;
@@ -173,16 +177,20 @@ router.post('/:id/approve', async (req, res) => {
             if (rewardGiven) {
               await referrer.save();
               
-              // Emit referrer update
+              // Emit referrer update with correct reward amount
               const io = req.app.get('io');
               if (io) {
+                // Get the last reward amount from the loop
+                const lastReward = levelRewards.find(r => r.members === activeReferralCount);
+                const lastRewardPKR = lastReward ? lastReward.usd * 280 : 0;
+                
                 io.emit('userUpdated', referrer);
                 io.emit('balanceUpdate', {
                   userId: referrer._id,
                   newBalance: referrer.balance,
                   transaction: {
                     type: 'deposit',
-                    amount: rewardPKR,
+                    amount: lastRewardPKR,
                     description: `Level completion reward`,
                     date: new Date(),
                     balanceAfter: referrer.balance

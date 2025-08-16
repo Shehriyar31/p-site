@@ -570,9 +570,9 @@ const UserDashboard = () => {
                     </div>
                   </div>
                   <div className="text-center text-sm-end">
-                    <h3 className="text-white mb-0">Level {userData.referrals >= 1200 ? '15' : userData.referrals >= 1100 ? '14' : userData.referrals >= 1000 ? '13' : userData.referrals >= 900 ? '12' : userData.referrals >= 800 ? '11' : userData.referrals >= 700 ? '10' : userData.referrals >= 600 ? '9' : userData.referrals >= 500 ? '8' : userData.referrals >= 400 ? '7' : userData.referrals >= 300 ? '6' : userData.referrals >= 200 ? '5' : userData.referrals >= 100 ? '4' : userData.referrals >= 50 ? '3' : userData.referrals >= 20 ? '2' : userData.referrals >= 10 ? '1' : '0'}</h3>
+                    <h3 className="text-white mb-0">Level {userData.referrals >= 1200 ? '16' : userData.referrals >= 1100 ? '15' : userData.referrals >= 1000 ? '14' : userData.referrals >= 900 ? '13' : userData.referrals >= 800 ? '12' : userData.referrals >= 700 ? '11' : userData.referrals >= 600 ? '10' : userData.referrals >= 500 ? '9' : userData.referrals >= 400 ? '8' : userData.referrals >= 300 ? '7' : userData.referrals >= 200 ? '6' : userData.referrals >= 100 ? '5' : userData.referrals >= 50 ? '4' : userData.referrals >= 20 ? '3' : userData.referrals >= 10 ? '2' : userData.referrals >= 5 ? '1' : '0'}</h3>
                     <small className="text-white opacity-75">
-                      {userData.referrals >= 1200 ? 'Crown Legend' : userData.referrals >= 1100 ? 'Royal Diamond' : userData.referrals >= 1000 ? 'Diamond Pro' : userData.referrals >= 900 ? 'Diamond Plus' : userData.referrals >= 800 ? 'Diamond Entry' : userData.referrals >= 700 ? 'Platinum Elite' : userData.referrals >= 600 ? 'Platinum Plus' : userData.referrals >= 500 ? 'Platinum Start' : userData.referrals >= 400 ? 'Golden Pro' : userData.referrals >= 300 ? 'Golden Star' : userData.referrals >= 200 ? 'Golden Badge' : userData.referrals >= 100 ? 'Silver Premium' : userData.referrals >= 50 ? 'Silver Entry' : userData.referrals >= 20 ? 'Bronze Plus' : userData.referrals >= 10 ? 'Starter Bronze' : 'Beginner'}
+                      {userData.referrals >= 1200 ? 'Crown Legend' : userData.referrals >= 1100 ? 'Royal Diamond' : userData.referrals >= 1000 ? 'Diamond Pro' : userData.referrals >= 900 ? 'Diamond Plus' : userData.referrals >= 800 ? 'Diamond Entry' : userData.referrals >= 700 ? 'Platinum Elite' : userData.referrals >= 600 ? 'Platinum Plus' : userData.referrals >= 500 ? 'Platinum Entry' : userData.referrals >= 400 ? 'Golden Pro' : userData.referrals >= 300 ? 'Golden Plus' : userData.referrals >= 200 ? 'Golden Entry' : userData.referrals >= 100 ? 'Silver Pro' : userData.referrals >= 50 ? 'Silver Start' : userData.referrals >= 20 ? 'Bronze Plus' : userData.referrals >= 10 ? 'Bronze Entry' : userData.referrals >= 5 ? 'Starter Bonus' : 'Beginner'}
                     </small>
                   </div>
                 </div>
@@ -1002,11 +1002,22 @@ const UserDashboard = () => {
                     <div className="level-system">
                       <div className="row">
                         <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(255, 140, 0, 0.1)', borderRadius: '8px', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-gift text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 1 - Starter Bonus</h6>
+                                <small className="text-white">5 Members (₨700 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
                           <div className="level-item p-3" style={{background: 'rgba(139, 69, 19, 0.1)', borderRadius: '8px', border: '1px solid rgba(139, 69, 19, 0.3)'}}>
                             <div className="d-flex align-items-center">
                               <i className="bi bi-award text-warning me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 1 - Starter Bronze</h6>
+                                <h6 className="text-white mb-1">Level 2 - Bronze Entry</h6>
                                 <small className="text-white">10 Members (₨1,400 Reward)</small>
                               </div>
                             </div>
@@ -1017,7 +1028,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-award-fill text-warning me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 2 - Bronze Plus</h6>
+                                <h6 className="text-white mb-1">Level 3 - Bronze Plus</h6>
                                 <small className="text-white">20 Members (₨1,400 Reward)</small>
                               </div>
                             </div>
@@ -1028,7 +1039,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-star text-info me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 3 - Silver Entry</h6>
+                                <h6 className="text-white mb-1">Level 4 - Silver Start</h6>
                                 <small className="text-white">50 Members (₨1,400 Reward)</small>
                               </div>
                             </div>
@@ -1039,7 +1050,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-star-fill text-info me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 4 - Silver Premium</h6>
+                                <h6 className="text-white mb-1">Level 5 - Silver Pro</h6>
                                 <small className="text-white">100 Members (₨5,600 Reward)</small>
                               </div>
                             </div>
@@ -1050,7 +1061,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-gem text-warning me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 5 - Golden Badge</h6>
+                                <h6 className="text-white mb-1">Level 6 - Golden Entry</h6>
                                 <small className="text-white">200 Members (₨14,000 Reward)</small>
                               </div>
                             </div>
@@ -1059,9 +1070,9 @@ const UserDashboard = () => {
                         <div className="col-md-6 mb-3">
                           <div className="level-item p-3" style={{background: 'rgba(255, 215, 0, 0.15)', borderRadius: '8px', border: '1px solid rgba(255, 215, 0, 0.4)'}}>
                             <div className="d-flex align-items-center">
-                              <i className="bi bi-star-half text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <i className="bi bi-plus-circle text-warning me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 6 - Golden Star</h6>
+                                <h6 className="text-white mb-1">Level 7 - Golden Plus</h6>
                                 <small className="text-white">300 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1072,7 +1083,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-trophy text-warning me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 7 - Golden Pro</h6>
+                                <h6 className="text-white mb-1">Level 8 - Golden Pro</h6>
                                 <small className="text-white">400 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1083,7 +1094,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-shield text-secondary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 8 - Platinum Start</h6>
+                                <h6 className="text-white mb-1">Level 9 - Platinum Entry</h6>
                                 <small className="text-white">500 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1094,7 +1105,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-shield-fill text-secondary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 9 - Platinum Plus</h6>
+                                <h6 className="text-white mb-1">Level 10 - Platinum Plus</h6>
                                 <small className="text-white">600 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1105,7 +1116,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-crown text-secondary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 10 - Platinum Elite</h6>
+                                <h6 className="text-white mb-1">Level 11 - Platinum Elite</h6>
                                 <small className="text-white">700 Members (₨28,000 Reward)</small>
                               </div>
                             </div>
@@ -1116,7 +1127,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-diamond text-primary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 11 - Diamond Entry</h6>
+                                <h6 className="text-white mb-1">Level 12 - Diamond Entry</h6>
                                 <small className="text-white">800 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1127,7 +1138,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-diamond-fill text-primary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 12 - Diamond Plus</h6>
+                                <h6 className="text-white mb-1">Level 13 - Diamond Plus</h6>
                                 <small className="text-white">900 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1138,7 +1149,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-diamond-half text-primary me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 13 - Diamond Pro</h6>
+                                <h6 className="text-white mb-1">Level 14 - Diamond Pro</h6>
                                 <small className="text-white">1000 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1149,7 +1160,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center">
                               <i className="bi bi-gem text-danger me-3" style={{fontSize: '24px'}}></i>
                               <div>
-                                <h6 className="text-white mb-1">Level 14 - Royal Diamond</h6>
+                                <h6 className="text-white mb-1">Level 15 - Royal Diamond</h6>
                                 <small className="text-white">1100 Members (₨7,000 Reward)</small>
                               </div>
                             </div>
@@ -1160,7 +1171,7 @@ const UserDashboard = () => {
                             <div className="d-flex align-items-center justify-content-center">
                               <i className="bi bi-crown-fill me-3" style={{fontSize: '30px', color: '#ffd700'}}></i>
                               <div className="text-center">
-                                <h5 className="text-warning mb-1">Level 15 - Crown Legend</h5>
+                                <h5 className="text-warning mb-1">Level 16 - Crown Legend</h5>
                                 <h4 className="text-success mb-0">1200 Members (₨140,000 Reward)</h4>
                               </div>
                             </div>
@@ -1176,7 +1187,7 @@ const UserDashboard = () => {
                           <div className="row">
                             <div className="col-md-4 mb-2">
                               <div className="text-white">
-                                <strong>Current Level:</strong> Level {userData.referrals >= 1200 ? '15' : userData.referrals >= 1100 ? '14' : userData.referrals >= 1000 ? '13' : userData.referrals >= 900 ? '12' : userData.referrals >= 800 ? '11' : userData.referrals >= 700 ? '10' : userData.referrals >= 600 ? '9' : userData.referrals >= 500 ? '8' : userData.referrals >= 400 ? '7' : userData.referrals >= 300 ? '6' : userData.referrals >= 200 ? '5' : userData.referrals >= 100 ? '4' : userData.referrals >= 50 ? '3' : userData.referrals >= 20 ? '2' : userData.referrals >= 10 ? '1' : '0'}
+                                <strong>Current Level:</strong> Level {userData.referrals >= 1200 ? '16' : userData.referrals >= 1100 ? '15' : userData.referrals >= 1000 ? '14' : userData.referrals >= 900 ? '13' : userData.referrals >= 800 ? '12' : userData.referrals >= 700 ? '11' : userData.referrals >= 600 ? '10' : userData.referrals >= 500 ? '9' : userData.referrals >= 400 ? '8' : userData.referrals >= 300 ? '7' : userData.referrals >= 200 ? '6' : userData.referrals >= 100 ? '5' : userData.referrals >= 50 ? '4' : userData.referrals >= 20 ? '3' : userData.referrals >= 10 ? '2' : userData.referrals >= 5 ? '1' : '0'}
                               </div>
                             </div>
                             <div className="col-md-4 mb-2">
@@ -1186,7 +1197,7 @@ const UserDashboard = () => {
                             </div>
                             <div className="col-md-4 mb-2">
                               <div className="text-info">
-                                <strong>Next Level:</strong> {userData.referrals >= 1200 ? 'Max Level!' : `${userData.referrals >= 1100 ? 1200 - userData.referrals : userData.referrals >= 1000 ? 1100 - userData.referrals : userData.referrals >= 900 ? 1000 - userData.referrals : userData.referrals >= 800 ? 900 - userData.referrals : userData.referrals >= 700 ? 800 - userData.referrals : userData.referrals >= 600 ? 700 - userData.referrals : userData.referrals >= 500 ? 600 - userData.referrals : userData.referrals >= 400 ? 500 - userData.referrals : userData.referrals >= 300 ? 400 - userData.referrals : userData.referrals >= 200 ? 300 - userData.referrals : userData.referrals >= 100 ? 200 - userData.referrals : userData.referrals >= 50 ? 100 - userData.referrals : userData.referrals >= 20 ? 50 - userData.referrals : userData.referrals >= 10 ? 20 - userData.referrals : 10 - userData.referrals} more needed`}
+                                <strong>Next Level:</strong> {userData.referrals >= 1200 ? 'Max Level!' : `${userData.referrals >= 1100 ? 1200 - userData.referrals : userData.referrals >= 1000 ? 1100 - userData.referrals : userData.referrals >= 900 ? 1000 - userData.referrals : userData.referrals >= 800 ? 900 - userData.referrals : userData.referrals >= 700 ? 800 - userData.referrals : userData.referrals >= 600 ? 700 - userData.referrals : userData.referrals >= 500 ? 600 - userData.referrals : userData.referrals >= 400 ? 500 - userData.referrals : userData.referrals >= 300 ? 400 - userData.referrals : userData.referrals >= 200 ? 300 - userData.referrals : userData.referrals >= 100 ? 200 - userData.referrals : userData.referrals >= 50 ? 100 - userData.referrals : userData.referrals >= 20 ? 50 - userData.referrals : userData.referrals >= 10 ? 20 - userData.referrals : userData.referrals >= 5 ? 10 - userData.referrals : 5 - userData.referrals} more needed`}
                               </div>
                             </div>
                           </div>
@@ -1196,7 +1207,7 @@ const UserDashboard = () => {
                                 className="progress-bar bg-warning" 
                                 role="progressbar" 
                                 style={{
-                                  width: `${userData.referrals >= 1100 ? ((userData.referrals - 1100) / 100) * 100 : userData.referrals >= 1000 ? ((userData.referrals - 1000) / 100) * 100 : userData.referrals >= 900 ? ((userData.referrals - 900) / 100) * 100 : userData.referrals >= 800 ? ((userData.referrals - 800) / 100) * 100 : userData.referrals >= 700 ? ((userData.referrals - 700) / 100) * 100 : userData.referrals >= 600 ? ((userData.referrals - 600) / 100) * 100 : userData.referrals >= 500 ? ((userData.referrals - 500) / 100) * 100 : userData.referrals >= 400 ? ((userData.referrals - 400) / 100) * 100 : userData.referrals >= 300 ? ((userData.referrals - 300) / 100) * 100 : userData.referrals >= 200 ? ((userData.referrals - 200) / 100) * 100 : userData.referrals >= 100 ? ((userData.referrals - 100) / 100) * 100 : userData.referrals >= 50 ? ((userData.referrals - 50) / 50) * 100 : userData.referrals >= 20 ? ((userData.referrals - 20) / 30) * 100 : userData.referrals >= 10 ? ((userData.referrals - 10) / 10) * 100 : (userData.referrals / 10) * 100}%`
+                                  width: `${userData.referrals >= 1100 ? ((userData.referrals - 1100) / 100) * 100 : userData.referrals >= 1000 ? ((userData.referrals - 1000) / 100) * 100 : userData.referrals >= 900 ? ((userData.referrals - 900) / 100) * 100 : userData.referrals >= 800 ? ((userData.referrals - 800) / 100) * 100 : userData.referrals >= 700 ? ((userData.referrals - 700) / 100) * 100 : userData.referrals >= 600 ? ((userData.referrals - 600) / 100) * 100 : userData.referrals >= 500 ? ((userData.referrals - 500) / 100) * 100 : userData.referrals >= 400 ? ((userData.referrals - 400) / 100) * 100 : userData.referrals >= 300 ? ((userData.referrals - 300) / 100) * 100 : userData.referrals >= 200 ? ((userData.referrals - 200) / 100) * 100 : userData.referrals >= 100 ? ((userData.referrals - 100) / 100) * 100 : userData.referrals >= 50 ? ((userData.referrals - 50) / 50) * 100 : userData.referrals >= 20 ? ((userData.referrals - 20) / 30) * 100 : userData.referrals >= 10 ? ((userData.referrals - 10) / 10) * 100 : userData.referrals >= 5 ? ((userData.referrals - 5) / 5) * 100 : (userData.referrals / 5) * 100}%`
                                 }}
                               ></div>
                             </div>
