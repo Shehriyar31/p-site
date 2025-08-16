@@ -63,6 +63,11 @@ const UserDashboard = () => {
     remainingClicks: 10,
     canClick: true
   });
+  const [countdown, setCountdown] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
 
   // Fetch user data
   const fetchUserData = async () => {
@@ -95,7 +100,7 @@ const UserDashboard = () => {
         fetchUserReferrals();
       }
     } catch (error) {
-      console.error('Fetch user data error:', error);
+      // Error handled silently
     }
   };
 
@@ -107,7 +112,7 @@ const UserDashboard = () => {
         setVideos(response.data.videos || []);
       }
     } catch (error) {
-      console.error('Fetch videos error:', error);
+      // Error handled silently
     }
   };
 
@@ -125,7 +130,7 @@ const UserDashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Fetch video status error:', error);
+      // Error handled silently
     }
   };
 
@@ -172,7 +177,6 @@ const UserDashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Video click error:', error);
       const message = error.response?.data?.message || 'Failed to process video click';
       toast.error(message, {
         position: "top-right",
@@ -186,15 +190,12 @@ const UserDashboard = () => {
     if (!currentUserId) return;
     
     try {
-      console.log('Fetching referrals for user:', currentUserId);
       const response = await userAPI.getUserReferrals(currentUserId);
-      console.log('Referrals response:', response.data);
       if (response.data.success) {
         setUserReferrals(response.data.referrals || []);
-        console.log('Set referrals:', response.data.referrals);
       }
     } catch (error) {
-      console.error('Fetch referrals error:', error);
+      // Error handled silently
     }
   };
 
@@ -208,7 +209,7 @@ const UserDashboard = () => {
         setTransactions(response.data.transactions.reverse()); // Show latest first
       }
     } catch (error) {
-      console.error('Fetch transactions error:', error);
+      // Error handled silently
     }
   };
 
@@ -226,7 +227,7 @@ const UserDashboard = () => {
         }));
       }
     } catch (error) {
-      console.error('Fetch spinner status error:', error);
+      // Error handled silently
     }
   };
 
@@ -261,7 +262,6 @@ const UserDashboard = () => {
         }, 3000);
       }
     } catch (error) {
-      console.error('Spin wheel error:', error);
       const message = error.response?.data?.message || 'Failed to spin wheel';
       toast.error(message, {
         position: "top-right",
@@ -271,6 +271,30 @@ const UserDashboard = () => {
       setSpinnerData(prev => ({ ...prev, isSpinning: false }));
     }
   };
+
+  // Countdown timer effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      
+      const timeLeft = tomorrow.getTime() - now.getTime();
+      
+      if (timeLeft > 0) {
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        
+        setCountdown({ hours, minutes, seconds });
+      } else {
+        setCountdown({ hours: 0, minutes: 0, seconds: 0 });
+      }
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
 
   // Load user data on mount and set up auto-refresh
   useEffect(() => {
@@ -377,7 +401,6 @@ const UserDashboard = () => {
         setContactForm({ name: '', email: '', subject: '', message: '' });
       }
     } catch (error) {
-      console.error('Contact submit error:', error);
       const message = error.response?.data?.message || 'Failed to send message';
       toast.error(message, {
         position: "top-right",
@@ -451,7 +474,6 @@ const UserDashboard = () => {
         fetchTransactions();
       }
     } catch (error) {
-      console.error('Withdrawal request error:', error);
       const message = error.response?.data?.message || 'Failed to submit withdrawal request';
       toast.error(message, {
         position: "top-right",
@@ -723,7 +745,7 @@ const UserDashboard = () => {
                       <h5 className="text-warning mb-0">Daily Videos</h5>
                       <div className="text-end">
                         <span className="badge bg-info me-2">{videoStatus.dailyClicks}/10 Clicked</span>
-                        <span className="badge bg-success">{videoStatus.remainingClicks} Remaining</span>
+                        <span className="badge bg-success">{Math.max(0, 10 - videoStatus.dailyClicks)} Remaining</span>
                       </div>
                     </div>
                   </Card.Header>
@@ -740,6 +762,38 @@ const UserDashboard = () => {
                         ></div>
                       </div>
                       <small className="text-white">Progress resets every 24 hours</small>
+                      
+                      {/* Countdown Timer */}
+                      <div className="countdown-timer mt-3 p-3" style={{background: 'rgba(255, 140, 0, 0.1)', borderRadius: '10px', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+                        <div className="text-center">
+                          <h6 className="text-warning mb-2">
+                            <i className="bi bi-clock me-2"></i>Next Reward Reset In:
+                          </h6>
+                          <div className="d-flex justify-content-center gap-3">
+                            <div className="time-unit text-center">
+                              <div className="time-value" style={{background: 'rgba(255, 140, 0, 0.2)', borderRadius: '8px', padding: '10px 15px', minWidth: '60px'}}>
+                                <h4 className="text-white mb-0">{String(countdown.hours).padStart(2, '0')}</h4>
+                              </div>
+                              <small className="text-white mt-1 d-block">Hours</small>
+                            </div>
+                            <div className="time-separator text-warning" style={{fontSize: '24px', alignSelf: 'center'}}>:</div>
+                            <div className="time-unit text-center">
+                              <div className="time-value" style={{background: 'rgba(255, 140, 0, 0.2)', borderRadius: '8px', padding: '10px 15px', minWidth: '60px'}}>
+                                <h4 className="text-white mb-0">{String(countdown.minutes).padStart(2, '0')}</h4>
+                              </div>
+                              <small className="text-white mt-1 d-block">Minutes</small>
+                            </div>
+                            <div className="time-separator text-warning" style={{fontSize: '24px', alignSelf: 'center'}}>:</div>
+                            <div className="time-unit text-center">
+                              <div className="time-value" style={{background: 'rgba(255, 140, 0, 0.2)', borderRadius: '8px', padding: '10px 15px', minWidth: '60px'}}>
+                                <h4 className="text-white mb-0">{String(countdown.seconds).padStart(2, '0')}</h4>
+                              </div>
+                              <small className="text-white mt-1 d-block">Seconds</small>
+                            </div>
+                          </div>
+                          <small className="text-white mt-2 d-block">Video clicks and rewards reset at midnight</small>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Rewards Section */}

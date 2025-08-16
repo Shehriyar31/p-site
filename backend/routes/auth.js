@@ -71,7 +71,6 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -160,7 +159,6 @@ router.post('/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Register error:', error);
     if (error.code === 11000) {
       // MongoDB duplicate key error
       const field = Object.keys(error.keyPattern)[0];
@@ -187,7 +185,6 @@ router.get('/validate-referral/:code', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Validate referral error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
