@@ -70,18 +70,157 @@ router.post('/:id/approve', async (req, res) => {
     request.status = 'Approved';
     await request.save();
 
-    // Update user balance and status if it's a deposit
+    // Update user status if it's a deposit (activation fee - no balance added)
     if (request.type === 'Deposit') {
       const user = await User.findById(request.userId);
       if (user) {
-        user.balance += request.amount; // This will be 865 PKR
+        // Only activate account, don't add balance (activation fee)
         user.status = 'Active';
         user.accountStatus = 'approved';
+        
+        // Add transaction to history (activation fee - no balance change)
+        user.transactions.push({
+          type: 'deposit',
+          amount: request.amount,
+          description: `Account activation fee - ${request.paymentMethod}`,
+          balanceAfter: user.balance // Balance remains same
+        });
+        
         await user.save();
+        
+        // Check if this user's referrer should get level rewards
+        if (user.referredBy) {
+          const referrer = await User.findById(user.referredBy);
+          if (referrer) {
+            // Count only active referrals
+            const activeReferralCount = await User.countDocuments({ 
+              referredBy: referrer._id, 
+              accountStatus: 'approved' 
+            });
+            
+            // Check for level completion rewards (only give rewards when milestones are reached)
+            const completedLevels = referrer.completedLevels || [];
+            let rewardGiven = false;
+            
+            const levelRewards = [
+              { level: 1, members: 10, usd: 5 },
+              { level: 2, members: 20, usd: 5 },
+              { level: 3, members: 50, usd: 5 },
+              { level: 4, members: 100, usd: 20 },
+              { level: 5, members: 200, usd: 50 },
+              { level: 6, members: 300, usd: 25 },
+              { level: 7, members: 400, usd: 25 },
+              { level: 8, members: 500, usd: 25 },
+              { level: 9, members: 600, usd: 25 },
+              { level: 10, members: 700, usd: 100 },
+              { level: 11, members: 800, usd: 25 },
+              { level: 12, members: 900, usd: 25 },
+              { level: 13, members: 1000, usd: 25 },
+              { level: 14, members: 1100, usd: 25 },
+              { level: 15, members: 1200, usd: 500 }
+            ];
+            
+            for (const reward of levelRewards) {
+              if (activeReferralCount === reward.members && !completedLevels.includes(reward.level)) {
+                const rewardPKR = reward.usd * 280;
+                
+                referrer.balance += rewardPKR;
+                referrer.totalEarnings += rewardPKR;
+                referrer.completedLevels.push(reward.level);
+                
+                const levelNames = {
+                  1: 'Starter Bronze',
+                  2: 'Bronze Plus', 
+                  3: 'Silver Entry',
+                  4: 'Silver Premium',
+                  5: 'Golden Badge',
+                  6: 'Golden Star',
+                  7: 'Golden Pro',
+                  8: 'Platinum Start',
+                  9: 'Platinum Plus',
+                  10: 'Platinum Elite',
+                  11: 'Diamond Entry',
+                  12: 'Diamond Plus',
+                  13: 'Diamond Pro',
+                  14: 'Royal Diamond',
+                  15: 'Crown Legend'
+                };
+                
+                referrer.transactions.push({
+                  type: 'deposit',
+                  amount: rewardPKR,
+                  description: `🎉 Level ${reward.level} (${levelNames[reward.level]}) achieved! ${activeReferralCount} members - $${reward.usd} reward`,
+                  balanceAfter: referrer.balance
+                });
+                
+                rewardGiven = true;
+                
+                // Send congratulations notification
+                const io = req.app.get('io');
+                if (io) {
+                  io.emit('levelUpNotification', {
+                    userId: referrer._id,
+                    level: reward.level,
+                    levelName: levelNames[reward.level],
+                    members: activeReferralCount,
+                    reward: rewardPKR,
+                    rewardUSD: reward.usd
+                  });
+                }
+              }
+            }
+            
+            if (rewardGiven) {
+              await referrer.save();
+              
+              // Emit referrer update
+              const io = req.app.get('io');
+              if (io) {
+                io.emit('userUpdated', referrer);
+                io.emit('balanceUpdate', {
+                  userId: referrer._id,
+                  newBalance: referrer.balance,
+                  transaction: {
+                    type: 'deposit',
+                    amount: rewardPKR,
+                    description: `Level completion reward`,
+                    date: new Date(),
+                    balanceAfter: referrer.balance
+                  }
+                });
+              }
+            }
+          }
+        }
         
         // Emit user update
         const io = req.app.get('io');
         io.emit('userUpdated', user);
+      }
+    }
+    
+    // Update withdrawal transaction status if it's a withdrawal
+    if (request.type === 'Withdraw') {
+      const user = await User.findById(request.userId);
+      if (user) {
+        // Find and update the pending withdrawal transaction
+        const pendingTransaction = user.transactions.find(t => 
+          t.type === 'withdraw' && 
+          t.status === 'pending' && 
+          t.description.includes(`₨${request.amount}`)
+        );
+        
+        if (pendingTransaction) {
+          pendingTransaction.status = 'completed';
+          pendingTransaction.description = pendingTransaction.description.replace('pending', 'approved');
+          await user.save();
+          
+          // Emit user update
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('userUpdated', user);
+          }
+        }
       }
     }
 
@@ -96,7 +235,7 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
-// Reject request (automatically deletes)
+// Reject request (refund balance for withdrawals)
 router.post('/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,14 +245,46 @@ router.post('/:id/reject', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Request not found' });
     }
 
-    // Delete the request instead of marking as rejected
+    // If it's a withdrawal request, refund the balance
+    if (request.type === 'Withdraw') {
+      const user = await User.findById(request.userId);
+      if (user) {
+        // Calculate refund amount (withdrawal + 1% fee)
+        const processingFee = Math.round(request.amount * 0.01);
+        const refundAmount = request.amount + processingFee;
+        
+        // Refund balance
+        user.balance += refundAmount;
+        user.withdrawalCount = Math.max(0, (user.withdrawalCount || 1) - 1);
+        
+        // Add refund transaction to history
+        user.transactions.push({
+          type: 'deposit',
+          amount: refundAmount,
+          description: `Withdrawal rejected - Refund: ₨${request.amount} + ₨${processingFee} fee`,
+          balanceAfter: user.balance
+        });
+        
+        await user.save();
+        
+        // Emit user update
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('userUpdated', user);
+        }
+      }
+    }
+
+    // Delete the request
     await Request.findByIdAndDelete(id);
 
     // Emit request deletion
     const io = req.app.get('io');
-    io.emit('requestDeleted', { id });
+    if (io) {
+      io.emit('requestDeleted', { id });
+    }
 
-    res.json({ success: true, message: 'Request rejected and deleted successfully' });
+    res.json({ success: true, message: 'Request rejected and balance refunded successfully' });
   } catch (error) {
     console.error('Reject request error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -133,6 +304,88 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true, message: 'Request deleted successfully' });
   } catch (error) {
     console.error('Delete request error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Create withdrawal request
+router.post('/withdrawal', async (req, res) => {
+  try {
+    const { userId, amount, accountNumber, accountName, bankName, withdrawalCount } = req.body;
+
+    // Get user details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check balance
+    if (user.balance < amount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Insufficient balance. Current balance: ₨${user.balance.toLocaleString()}` 
+      });
+    }
+
+    // Calculate 1% processing fee
+    const processingFee = Math.round(amount * 0.01);
+    const totalDeduction = amount + processingFee;
+
+    // Check if user has enough balance including fee
+    if (user.balance < totalDeduction) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Insufficient balance including 1% processing fee. Required: ₨${totalDeduction.toLocaleString()}` 
+      });
+    }
+
+    // Deduct amount + fee from user balance immediately
+    user.balance -= totalDeduction;
+    user.withdrawalCount = (user.withdrawalCount || 0) + 1;
+
+    // Add transaction to history with pending status
+    user.transactions.push({
+      type: 'withdraw',
+      amount: totalDeduction,
+      description: `Withdrawal pending - ₨${amount} + ₨${processingFee} fee`,
+      balanceAfter: user.balance,
+      status: 'pending'
+    });
+
+    await user.save();
+
+    // Create withdrawal request
+    const request = new Request({
+      userId,
+      user: user.username,
+      type: 'Withdraw',
+      amount,
+      paymentMethod: 'Bank Transfer',
+      accountNumber,
+      accountName,
+      bankName,
+      withdrawalCount: user.withdrawalCount,
+      description: `Withdrawal request - ${user.withdrawalCount === 1 ? '1st' : user.withdrawalCount === 2 ? '2nd' : '3rd+'} withdrawal`
+    });
+
+    await request.save();
+
+    // Emit real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('newRequest', request);
+      io.emit('userUpdated', user);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Withdrawal request submitted and balance deducted successfully',
+      newBalance: user.balance,
+      deductedAmount: totalDeduction,
+      processingFee
+    });
+  } catch (error) {
+    console.error('Create withdrawal request error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

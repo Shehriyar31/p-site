@@ -7,9 +7,13 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    
+    // Trim whitespace from inputs
+    const trimmedUsername = username?.trim();
+    const trimmedPassword = password?.trim();
 
     // Check for super admin
-    if (username.toLowerCase() === 'gillanibhai' && password === 'syedmoiz999$7') {
+    if (trimmedUsername.toLowerCase() === 'gillanibhai' && trimmedPassword === 'syedmoiz999$7') {
       const token = jwt.sign(
         { id: 'superadmin', role: 'superadmin', username: 'GillaniBhai' },
         process.env.JWT_SECRET,
@@ -24,7 +28,7 @@ router.post('/login', async (req, res) => {
 
     // Find user in database
     const user = await User.findOne({
-      $or: [{ username }, { name: username }]
+      $or: [{ username: trimmedUsername }, { name: trimmedUsername }]
     });
 
     if (!user) {
@@ -32,7 +36,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Check password
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(trimmedPassword);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Invalid password' });
     }
@@ -75,11 +79,36 @@ router.post('/login', async (req, res) => {
 // Register route
 router.post('/register', async (req, res) => {
   try {
-    const { name, username, email, phone, password } = req.body;
+    const { name, username, email, phone, password, referralCode } = req.body;
+    
+    // Trim whitespace from all inputs
+    const trimmedName = name?.trim();
+    const trimmedUsername = username?.trim();
+    const trimmedEmail = email?.trim();
+    const trimmedPhone = phone?.trim();
+    const trimmedPassword = password?.trim();
+    const trimmedReferralCode = referralCode?.trim();
+
+    // Validate referral code
+    if (!trimmedReferralCode) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Referral code is required' 
+      });
+    }
+
+    // Check if referral code exists
+    const referrer = await User.findOne({ username: trimmedReferralCode });
+    if (!referrer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid referral code' 
+      });
+    }
 
     // Check if username exists (case insensitive)
     const existingUsername = await User.findOne({
-      username: { $regex: new RegExp(`^${username}$`, 'i') }
+      username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') }
     });
 
     if (existingUsername) {
@@ -91,7 +120,7 @@ router.post('/register', async (req, res) => {
 
     // Check if email exists (case insensitive)
     const existingEmail = await User.findOne({
-      email: { $regex: new RegExp(`^${email}$`, 'i') }
+      email: { $regex: new RegExp(`^${trimmedEmail}$`, 'i') }
     });
 
     if (existingEmail) {
@@ -103,15 +132,18 @@ router.post('/register', async (req, res) => {
 
     // Create new user
     const user = new User({
-      name,
-      username,
-      email,
-      phone,
-      password,
-      role: 'user'
+      name: trimmedName,
+      username: trimmedUsername,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      password: trimmedPassword,
+      role: 'user',
+      referredBy: referrer._id
     });
 
     await user.save();
+
+    // Note: Level rewards will be given when user account gets activated, not during registration
 
     // Emit real-time update for new user registration
     const io = req.app.get('io');
@@ -123,7 +155,7 @@ router.post('/register', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully with referral code',
       userId: user._id
     });
 
@@ -137,6 +169,25 @@ router.post('/register', async (req, res) => {
         message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists` 
       });
     }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Validate referral code
+router.get('/validate-referral/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    
+    const user = await User.findOne({ username: code });
+    
+    res.json({
+      success: true,
+      valid: !!user,
+      message: user ? 'Valid referral code' : 'Invalid referral code'
+    });
+    
+  } catch (error) {
+    console.error('Validate referral error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

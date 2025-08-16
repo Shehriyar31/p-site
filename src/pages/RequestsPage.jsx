@@ -44,12 +44,16 @@ const RequestsPage = () => {
 
 
   const handleApprove = async (id) => {
+    const request = requests.find(r => r._id === id);
     try {
       setActionLoading(true);
       const response = await requestAPI.approveRequest(id);
       
       if (response.data.success) {
-        toast.success('Deposit approved! User account activated successfully.', {
+        const message = request?.type === 'Withdraw' 
+          ? 'Withdrawal approved! Payment processed successfully.' 
+          : 'Deposit approved! User account activated successfully.';
+        toast.success(message, {
           position: "top-right",
           autoClose: 3000,
           theme: "dark"
@@ -69,12 +73,16 @@ const RequestsPage = () => {
   };
 
   const handleReject = async (id) => {
+    const request = requests.find(r => r._id === id);
     try {
       setActionLoading(true);
       const response = await requestAPI.rejectRequest(id);
       
       if (response.data.success) {
-        toast.error('Deposit request rejected and deleted!', {
+        const message = request?.type === 'Withdraw' 
+          ? 'Withdrawal rejected! Balance refunded to user.' 
+          : 'Deposit request rejected and deleted!';
+        toast.error(message, {
           position: "top-right",
           autoClose: 3000,
           theme: "dark"
@@ -367,6 +375,22 @@ const RequestsPage = () => {
                       <span className="detail-label">Payment Method:</span>
                       <span className="detail-value">{selectedRequest.paymentMethod}</span>
                     </div>
+                    {selectedRequest.type === 'Withdraw' && (
+                      <>
+                        <div className="detail-item">
+                          <span className="detail-label">Account Number:</span>
+                          <span className="detail-value">{selectedRequest.accountNumber}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Account Name:</span>
+                          <span className="detail-value">{selectedRequest.accountName}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Bank Name:</span>
+                          <span className="detail-value">{selectedRequest.bankName}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   
                   <div className="detail-section">
@@ -381,10 +405,18 @@ const RequestsPage = () => {
                       <span className="detail-label">Amount:</span>
                       <span className="detail-value amount">₨{selectedRequest.amount?.toLocaleString()}</span>
                     </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Transaction ID:</span>
-                      <span className="detail-value">{selectedRequest.transactionId}</span>
-                    </div>
+                    {selectedRequest.type === 'Deposit' && (
+                      <div className="detail-item">
+                        <span className="detail-label">Transaction ID:</span>
+                        <span className="detail-value">{selectedRequest.transactionId}</span>
+                      </div>
+                    )}
+                    {selectedRequest.type === 'Withdraw' && (
+                      <div className="detail-item">
+                        <span className="detail-label">Withdrawal Tier:</span>
+                        <span className="detail-value">{selectedRequest.description}</span>
+                      </div>
+                    )}
                     <div className="detail-item">
                       <span className="detail-label">Date:</span>
                       <span className="detail-value">{new Date(selectedRequest.createdAt).toLocaleDateString()}</span>
@@ -401,25 +433,38 @@ const RequestsPage = () => {
                   </div>
                 </Col>
                 <Col md={6}>
-                  <div className="detail-section">
-                    <h6 className="text-warning mb-3">Payment Screenshot</h6>
-                    <div className="screenshot-container">
-                      {selectedRequest.screenshot ? (
-                        <img 
-                          src={selectedRequest.screenshot} 
-                          alt="Payment Screenshot" 
-                          className="payment-screenshot"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : (
-                        <div className="text-warning">No screenshot available</div>
-                      )}
-                      <div style={{display: 'none'}} className="text-warning">Screenshot failed to load</div>
+                  {selectedRequest.type === 'Deposit' && (
+                    <div className="detail-section">
+                      <h6 className="text-warning mb-3">Payment Screenshot</h6>
+                      <div className="screenshot-container">
+                        {selectedRequest.screenshot ? (
+                          <img 
+                            src={selectedRequest.screenshot} 
+                            alt="Payment Screenshot" 
+                            className="payment-screenshot"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-warning">No screenshot available</div>
+                        )}
+                        <div style={{display: 'none'}} className="text-warning">Screenshot failed to load</div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {selectedRequest.type === 'Withdraw' && (
+                    <div className="detail-section">
+                      <h6 className="text-warning mb-3">Withdrawal Information</h6>
+                      <div className="alert alert-info" style={{background: 'rgba(13,202,240,0.1)', border: '1px solid #0dcaf0'}}>
+                        <small className="text-info">
+                          <i className="bi bi-info-circle me-2"></i>
+                          Balance already deducted from user account. Process payment to user's bank account.
+                        </small>
+                      </div>
+                    </div>
+                  )}
                 </Col>
               </Row>
               

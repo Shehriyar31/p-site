@@ -12,7 +12,23 @@ const userSchema = new mongoose.Schema({
   status: { type: String, enum: ['Active', 'Inactive'], default: 'Inactive' },
   accountStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   paymentMethod: { type: String, default: 'Easypaisa' },
-  joinDate: { type: Date, default: Date.now }
+  joinDate: { type: Date, default: Date.now },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  transactions: [{
+    type: { type: String, enum: ['deposit', 'withdraw'], required: true },
+    amount: { type: Number, required: true },
+    description: String,
+    date: { type: Date, default: Date.now },
+    balanceAfter: Number,
+    status: { type: String, enum: ['completed', 'pending', 'rejected'], default: 'completed' }
+  }],
+  lastSpinDate: { type: Date },
+  totalEarnings: { type: Number, default: 0 },
+  withdrawalCount: { type: Number, default: 0 },
+  completedLevels: { type: [Number], default: [] },
+  videoClicks: { type: Number, default: 0 },
+  lastVideoClickDate: { type: Date },
+  dailyVideoClicks: { type: Number, default: 0 }
 }, {
   timestamps: true
 });

@@ -11,6 +11,10 @@ const requestSchema = new mongoose.Schema({
   screenshot: { type: String }, // Base64 encoded image
   phone: String,
   description: String,
+  accountNumber: String,
+  accountName: String,
+  bankName: String,
+  withdrawalCount: Number,
   date: { type: Date, default: Date.now }
 }, {
   timestamps: true

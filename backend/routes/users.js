@@ -25,6 +25,151 @@ router.get('/role/:role', async (req, res) => {
   }
 });
 
+// Get single user by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Count only active referrals
+    const referralCount = await User.countDocuments({ 
+      referredBy: id, 
+      accountStatus: 'approved' 
+    });
+    
+    const userResponse = user.toObject();
+    userResponse.referrals = referralCount;
+    
+    res.json({ success: true, user: userResponse });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get user transactions
+router.get('/:id/transactions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const transactions = user.transactions || [];
+    res.json({ success: true, transactions });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get spinner status
+router.get('/:id/spinner', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const now = new Date();
+    const lastSpin = user.lastSpinDate;
+    const canSpin = !lastSpin || (now - lastSpin) >= 24 * 60 * 60 * 1000; // 24 hours
+    
+    let nextSpinTime = null;
+    if (!canSpin) {
+      nextSpinTime = new Date(lastSpin.getTime() + 24 * 60 * 60 * 1000);
+    }
+    
+    res.json({ success: true, canSpin, nextSpinTime });
+  } catch (error) {
+    console.error('Get spinner status error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Spin wheel
+router.post('/:id/spin', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const now = new Date();
+    const lastSpin = user.lastSpinDate;
+    const canSpin = !lastSpin || (now - lastSpin) >= 24 * 60 * 60 * 1000;
+    
+    if (!canSpin) {
+      return res.status(400).json({ success: false, message: 'You can only spin once every 24 hours' });
+    }
+    
+    // Weighted random selection (very low chances for $3 and $5)
+    const prizes = [
+      { value: 0.5, weight: 2 },
+      { value: 0.1, weight: 2 },
+      { value: 0.2, weight: 2 },
+      { value: 0.6, weight: 1 },
+      { value: 0.8, weight: 1 },
+      { value: 1, weight: 1 },
+      { value: 3, weight: 0.1 },
+      { value: 5, weight: 0.1 },
+      { value: 'try again', weight: 90.8 }
+    ];
+    
+    const totalWeight = prizes.reduce((sum, prize) => sum + prize.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    let selectedPrize = prizes[prizes.length - 1]; // default to try again
+    for (const prize of prizes) {
+      random -= prize.weight;
+      if (random <= 0) {
+        selectedPrize = prize;
+        break;
+      }
+    }
+    
+    // Update user
+    user.lastSpinDate = now;
+    
+    if (selectedPrize.value !== 'try again') {
+      // Convert USD to PKR (1 USD = 280 PKR approximately)
+      const pkrAmount = selectedPrize.value * 280;
+      user.totalEarnings += pkrAmount;
+      
+      // Add transaction
+      user.transactions.push({
+        type: 'deposit',
+        amount: pkrAmount,
+        description: `Spinner win: $${selectedPrize.value} (₨${pkrAmount})`,
+        balanceAfter: user.balance + pkrAmount
+      });
+      
+      user.balance += pkrAmount;
+    }
+    
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      result: selectedPrize.value,
+      message: selectedPrize.value === 'try again' ? 'Try again tomorrow!' : `You won $${selectedPrize.value}!`
+    });
+  } catch (error) {
+    console.error('Spin wheel error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Create new user (admin only)
 router.post('/', async (req, res) => {
   try {
@@ -106,17 +251,27 @@ router.put('/:id', async (req, res) => {
       delete updates.password;
     }
 
-    const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
-    
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Update user fields
+    Object.keys(updates).forEach(key => {
+      user[key] = updates[key];
+    });
+
+    // Save user (this will trigger password hashing if password is updated)
+    await user.save();
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
     // Emit real-time update
     const io = req.app.get('io');
-    io.emit('userUpdated', user);
+    io.emit('userUpdated', userResponse);
 
-    res.json({ success: true, user });
+    res.json({ success: true, user: userResponse });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -145,11 +300,49 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Get user referrals
+router.get('/:id/referrals', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('Getting referrals for user ID:', id);
+    
+    // First check if the user exists
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    console.log('User found:', user.username);
+    
+    // Find all active users who were referred by this user
+    const referrals = await User.find({ 
+      referredBy: id, 
+      accountStatus: 'approved' 
+    })
+      .select('name username email createdAt referredBy')
+      .sort({ createdAt: -1 });
+    
+    console.log('Found referrals:', referrals.length);
+    console.log('Referrals data:', referrals);
+    
+    // Also check total users with any referredBy field
+    const totalReferredUsers = await User.find({ referredBy: { $exists: true, $ne: null } })
+      .select('name username referredBy');
+    console.log('Total users with referrals:', totalReferredUsers.length);
+    
+    res.json({ success: true, referrals });
+  } catch (error) {
+    console.error('Get referrals error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Update user balance
 router.post('/:id/balance', async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, type } = req.body;
+    const { amount, type, description } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -168,6 +361,14 @@ router.post('/:id/balance', async (req, res) => {
       }
       user.balance -= amount;
     }
+
+    // Add transaction to history
+    user.transactions.push({
+      type,
+      amount,
+      description: description || `${type === 'deposit' ? 'Deposit' : 'Withdrawal'} by admin`,
+      balanceAfter: user.balance
+    });
 
     await user.save();
 

@@ -1,8 +1,8 @@
-import { Container, Row, Col, Card, Button, Navbar, Nav, Form } from 'react-bootstrap';
-import { useState } from 'react';
+import { Container, Row, Col, Card, Button, Navbar, Nav, Form, Modal } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
-import { useGlobalState } from '../context/GlobalContext';
+import { contactAPI, userAPI, videoAPI } from '../services/api';
 import RefreshButton from '../components/RefreshButton';
 import AnnouncementTicker from '../components/AnnouncementTicker';
 import useAutoLogout from '../hooks/useAutoLogout';
@@ -14,45 +14,456 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const UserDashboard = () => {
   useAutoLogout();
-  const { announcements } = useGlobalState();
   const currentUsername = localStorage.getItem('username') || 'User';
+  const currentUserId = localStorage.getItem('userId');
+  const currentUserUsername = localStorage.getItem('username') || 'user123';
   const [activeSection, setActiveSection] = useState('dashboard');
   const [contactForm, setContactForm] = useState({
     name: '',
-    username: '',
     email: '',
-    phone: '',
+    subject: '',
     message: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState({
+    balance: 0,
+    todayEarnings: 0,
+    referrals: 0
+  });
+  const [transactions, setTransactions] = useState([]);
+  const [spinnerData, setSpinnerData] = useState({
+    canSpin: true,
+    nextSpinTime: null,
+    isSpinning: false,
+    result: null
+  });
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
-  const handleContactSubmit = (e) => {
-    e.preventDefault();
-    if (!contactForm.name || !contactForm.message) {
-      toast.error('Please fill name and message');
+  const [userProfile, setUserProfile] = useState({
+    username: localStorage.getItem('username') || 'User',
+    email: localStorage.getItem('email') || 'user@example.com',
+    fullName: localStorage.getItem('fullName') || 'User Name',
+    joinDate: localStorage.getItem('joinDate') || new Date().toLocaleDateString(),
+    userId: localStorage.getItem('userId') || 'N/A'
+  });
+  const [userReferrals, setUserReferrals] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    accountNumber: '',
+    accountName: '',
+    bankName: ''
+  });
+  const [withdrawalData, setWithdrawalData] = useState({
+    withdrawalCount: 0,
+    minimumAmount: 143
+  });
+  const [videos, setVideos] = useState([]);
+  const [videoStatus, setVideoStatus] = useState({
+    dailyClicks: 0,
+    remainingClicks: 10,
+    canClick: true
+  });
+
+  // Fetch user data
+  const fetchUserData = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      const response = await userAPI.getCurrentUser(currentUserId);
+      if (response.data.success) {
+        setUserData({
+          balance: response.data.user.balance || 0,
+          todayEarnings: response.data.user.totalEarnings || 0,
+          referrals: response.data.user.referrals || 0
+        });
+        
+        // Set withdrawal data
+        setWithdrawalData({
+          withdrawalCount: response.data.user.withdrawalCount || 0,
+          minimumAmount: getMinimumWithdrawal(response.data.user.withdrawalCount || 0)
+        });
+        // Update profile data if available
+        if (response.data.user) {
+          setUserProfile(prev => ({
+            ...prev,
+            username: response.data.user.username || prev.username,
+            email: response.data.user.email || prev.email,
+            fullName: response.data.user.fullName || prev.fullName,
+            joinDate: response.data.user.createdAt ? new Date(response.data.user.createdAt).toLocaleDateString() : prev.joinDate
+          }));
+        }
+        fetchUserReferrals();
+      }
+    } catch (error) {
+      console.error('Fetch user data error:', error);
+    }
+  };
+
+  // Fetch videos
+  const fetchVideos = async () => {
+    try {
+      const response = await videoAPI.getVideos();
+      if (response.data.success) {
+        setVideos(response.data.videos || []);
+      }
+    } catch (error) {
+      console.error('Fetch videos error:', error);
+    }
+  };
+
+  // Fetch video status
+  const fetchVideoStatus = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      const response = await videoAPI.getVideoStatus(currentUserId);
+      if (response.data.success) {
+        setVideoStatus({
+          dailyClicks: response.data.dailyClicks || 0,
+          remainingClicks: response.data.remainingClicks || 10,
+          canClick: response.data.canClick || false
+        });
+      }
+    } catch (error) {
+      console.error('Fetch video status error:', error);
+    }
+  };
+
+  // Handle video click
+  const handleVideoClick = async (videoId, videoUrl) => {
+    if (!videoStatus.canClick || videoStatus.remainingClicks <= 0) {
+      toast.error('Daily video limit reached! Try again tomorrow.', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
       return;
     }
 
-    const contact = {
-      id: Date.now(),
-      ...contactForm,
-      submittedBy: currentUsername,
-      userAccount: localStorage.getItem('username') || 'Unknown',
-      userId: localStorage.getItem('userId') || 'N/A',
-      createdAt: new Date().toISOString(),
-      status: 'New'
-    };
-
-    // Save to localStorage
-    const contacts = JSON.parse(localStorage.getItem('userContacts') || '[]');
-    contacts.unshift(contact);
-    localStorage.setItem('userContacts', JSON.stringify(contacts));
-
-    // Emit real-time update
-    window.dispatchEvent(new CustomEvent('newContact', { detail: contact }));
-
-    toast.success('Message sent successfully!');
-    setContactForm({ name: '', username: '', email: '', phone: '', message: '' });
+    try {
+      const response = await videoAPI.clickVideo(currentUserId, { videoId });
+      if (response.data.success) {
+        // Open video in new tab
+        window.open(response.data.videoUrl, '_blank');
+        
+        // Update video status
+        setVideoStatus({
+          dailyClicks: response.data.dailyClicks,
+          remainingClicks: response.data.remainingClicks,
+          canClick: response.data.remainingClicks > 0
+        });
+        
+        // Update balance if reward earned
+        if (response.data.rewardEarned > 0) {
+          setUserData(prev => ({
+            ...prev,
+            balance: response.data.newBalance,
+            todayEarnings: prev.todayEarnings + response.data.rewardEarned
+          }));
+          
+          // Refresh transactions to show new reward
+          fetchTransactions();
+        }
+        
+        toast.success(response.data.message, {
+          position: "top-right",
+          autoClose: response.data.rewardEarned > 0 ? 5000 : 3000,
+          theme: "dark"
+        });
+      }
+    } catch (error) {
+      console.error('Video click error:', error);
+      const message = error.response?.data?.message || 'Failed to process video click';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    }
   };
+
+  const fetchUserReferrals = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      console.log('Fetching referrals for user:', currentUserId);
+      const response = await userAPI.getUserReferrals(currentUserId);
+      console.log('Referrals response:', response.data);
+      if (response.data.success) {
+        setUserReferrals(response.data.referrals || []);
+        console.log('Set referrals:', response.data.referrals);
+      }
+    } catch (error) {
+      console.error('Fetch referrals error:', error);
+    }
+  };
+
+  // Fetch transactions
+  const fetchTransactions = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      const response = await userAPI.getUserTransactions(currentUserId);
+      if (response.data.success) {
+        setTransactions(response.data.transactions.reverse()); // Show latest first
+      }
+    } catch (error) {
+      console.error('Fetch transactions error:', error);
+    }
+  };
+
+  // Fetch spinner status
+  const fetchSpinnerStatus = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      const response = await userAPI.getSpinnerStatus(currentUserId);
+      if (response.data.success) {
+        setSpinnerData(prev => ({
+          ...prev,
+          canSpin: response.data.canSpin,
+          nextSpinTime: response.data.nextSpinTime
+        }));
+      }
+    } catch (error) {
+      console.error('Fetch spinner status error:', error);
+    }
+  };
+
+  // Handle wheel spin
+  const handleSpin = async () => {
+    if (!spinnerData.canSpin || spinnerData.isSpinning) return;
+    
+    setSpinnerData(prev => ({ ...prev, isSpinning: true }));
+    
+    try {
+      const response = await userAPI.spinWheel(currentUserId);
+      if (response.data.success) {
+        // Simulate spinning animation
+        setTimeout(() => {
+          setSpinnerData(prev => ({
+            ...prev,
+            isSpinning: false,
+            result: response.data.result,
+            canSpin: false
+          }));
+          
+          toast.success(response.data.message, {
+            position: "top-right",
+            autoClose: 3000,
+            theme: "dark"
+          });
+          
+          // Refresh user data and transactions
+          fetchUserData();
+          fetchTransactions();
+          fetchSpinnerStatus();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Spin wheel error:', error);
+      const message = error.response?.data?.message || 'Failed to spin wheel';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+      setSpinnerData(prev => ({ ...prev, isSpinning: false }));
+    }
+  };
+
+  // Load user data on mount and set up auto-refresh
+  useEffect(() => {
+    fetchUserData();
+    fetchTransactions();
+    fetchSpinnerStatus();
+    fetchUserReferrals();
+    fetchVideos();
+    fetchVideoStatus();
+    
+    // Set up socket listener for real-time balance updates
+    const socket = window.io ? window.io() : null;
+    if (socket) {
+      socket.on('balanceUpdate', (data) => {
+        if (data.userId === currentUserId) {
+          setUserData(prev => ({
+            ...prev,
+            balance: data.newBalance,
+            todayEarnings: prev.todayEarnings + data.transaction.amount
+          }));
+          fetchTransactions();
+        }
+      });
+      
+      socket.on('userUpdated', (updatedUser) => {
+        if (updatedUser._id === currentUserId) {
+          setUserData({
+            balance: updatedUser.balance || 0,
+            todayEarnings: updatedUser.totalEarnings || 0,
+            referrals: updatedUser.referrals || 0
+          });
+          fetchTransactions();
+        }
+      });
+      
+      socket.on('levelUpNotification', (data) => {
+        if (data.userId === currentUserId) {
+          toast.success(`🎉 Congratulations! You've reached Level ${data.level} (${data.levelName})! 🎆\n👥 ${data.members} Members \n💰 Reward: ₨${data.reward.toLocaleString()} ($${data.rewardUSD})`, {
+            position: "top-center",
+            autoClose: 8000,
+            theme: "dark",
+            style: {
+              background: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+              color: '#000',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            }
+          });
+        }
+      });
+      
+      return () => {
+        socket.off('balanceUpdate');
+        socket.off('userUpdated');
+        socket.off('levelUpNotification');
+      };
+    }
+    
+    // Auto-refresh every 5 seconds
+    const interval = setInterval(() => {
+      fetchUserData();
+      fetchTransactions();
+      fetchSpinnerStatus();
+      fetchUserReferrals();
+      fetchVideoStatus();
+    }, 5000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentUserId]);
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!contactForm.name || !contactForm.email || !contactForm.subject || !contactForm.message) {
+      toast.error('Please fill all required fields', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const contactData = {
+        userId: currentUserId,
+        name: contactForm.name,
+        email: contactForm.email,
+        subject: contactForm.subject,
+        message: contactForm.message
+      };
+      
+      const response = await contactAPI.createContact(contactData);
+      
+      if (response.data.success) {
+        toast.success('Message sent successfully! Admin will review your message.', {
+          position: "top-right",
+          autoClose: 3000,
+          theme: "dark"
+        });
+        
+        setContactForm({ name: '', email: '', subject: '', message: '' });
+      }
+    } catch (error) {
+      console.error('Contact submit error:', error);
+      const message = error.response?.data?.message || 'Failed to send message';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMinimumWithdrawal = (count) => {
+    if (count === 0) return 143; // $0.5
+    if (count === 1) return 285; // $1
+    return 855; // $3 for all subsequent withdrawals
+  };
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!paymentForm.accountNumber || !paymentForm.accountName || !paymentForm.bankName) {
+      toast.error('Please fill all payment details', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+      return;
+    }
+
+    if (userData.balance < withdrawalData.minimumAmount) {
+      toast.error(`Insufficient balance. Minimum withdrawal: ₨${withdrawalData.minimumAmount.toLocaleString()}`, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const withdrawalRequest = {
+        userId: currentUserId,
+        amount: withdrawalData.minimumAmount,
+        accountNumber: paymentForm.accountNumber,
+        accountName: paymentForm.accountName,
+        bankName: paymentForm.bankName,
+        withdrawalCount: withdrawalData.withdrawalCount
+      };
+      
+      const response = await userAPI.createWithdrawalRequest(withdrawalRequest);
+      
+      if (response.data.success) {
+        toast.success(`Withdrawal request submitted! ₨${response.data.deductedAmount.toLocaleString()} deducted from balance`, {
+          position: "top-right",
+          autoClose: 4000,
+          theme: "dark"
+        });
+        
+        // Update local state immediately
+        setUserData(prev => ({
+          ...prev,
+          balance: response.data.newBalance
+        }));
+        
+        setPaymentForm({ accountNumber: '', accountName: '', bankName: '' });
+        setShowPaymentModal(false);
+        
+        // Refresh all data
+        fetchUserData();
+        fetchTransactions();
+      }
+    } catch (error) {
+      console.error('Withdrawal request error:', error);
+      const message = error.response?.data?.message || 'Failed to submit withdrawal request';
+      toast.error(message, {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   return (
     <div className="login-wrapper">
@@ -65,7 +476,7 @@ const UserDashboard = () => {
                   <div className="d-flex align-items-center">
                     <img src={logo} alt="Logo" className="admin-logo me-3" style={{width: '50px', height: '50px'}} />
                     <div>
-                      <h2 className="text-white mb-0 header-title">User Dashboard</h2>
+                      <h2 className="text-white mb-0 header-title">ProfitPro</h2>
                       <small className="text-warning">Welcome, {currentUsername}</small>
                     </div>
                   </div>
@@ -73,10 +484,11 @@ const UserDashboard = () => {
                 <div className="col-lg-6 col-md-12">
                   <div className="d-flex justify-content-lg-end justify-content-center gap-2">
                     <RefreshButton />
-                    <Button variant="outline-warning" size="sm">
+                    <Button variant="outline-warning" size="sm" onClick={() => setShowProfileModal(true)}>
                       <i className="bi bi-person-circle me-1"></i>
                       <span className="d-none d-sm-inline">Profile</span>
                     </Button>
+
                     <Link to="/login">
                       <Button variant="outline-light" size="sm">
                         <i className="bi bi-box-arrow-right me-1"></i>
@@ -118,6 +530,19 @@ const UserDashboard = () => {
                       <i className="bi bi-people me-2"></i>Referrals
                     </Nav.Link>
                     <Nav.Link 
+                      className={activeSection === 'history' ? 'active' : ''}
+                      onClick={() => setActiveSection('history')}
+                    >
+                      <i className="bi bi-clock-history me-2"></i>History
+                    </Nav.Link>
+                    <Nav.Link 
+                      className={activeSection === 'spinner' ? 'active' : ''}
+                      onClick={() => setActiveSection('spinner')}
+                    >
+                      <i className="bi bi-arrow-clockwise me-2"></i>Spinner
+                    </Nav.Link>
+
+                    <Nav.Link 
                       className={activeSection === 'contact' ? 'active' : ''}
                       onClick={() => setActiveSection('contact')}
                     >
@@ -128,6 +553,31 @@ const UserDashboard = () => {
               </Container>
             </Navbar>
             <AnnouncementTicker />
+          </Col>
+        </Row>
+        
+        {/* Level Box */}
+        <Row>
+          <Col>
+            <div className="level-box mx-3 mx-md-4 mb-3" style={{background: 'linear-gradient(135deg, #ff8c00, #ff6b00)', borderRadius: '10px', boxShadow: '0 4px 15px rgba(255, 140, 0, 0.3)'}}>
+              <div className="p-3">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center">
+                  <div className="d-flex align-items-center mb-2 mb-sm-0">
+                    <i className="bi bi-trophy-fill text-white me-3" style={{fontSize: '30px'}}></i>
+                    <div className="text-center text-sm-start">
+                      <h5 className="text-white mb-0">Current Level</h5>
+                      <small className="text-white opacity-75">Based on your referrals</small>
+                    </div>
+                  </div>
+                  <div className="text-center text-sm-end">
+                    <h3 className="text-white mb-0">Level {userData.referrals >= 1200 ? '15' : userData.referrals >= 1100 ? '14' : userData.referrals >= 1000 ? '13' : userData.referrals >= 900 ? '12' : userData.referrals >= 800 ? '11' : userData.referrals >= 700 ? '10' : userData.referrals >= 600 ? '9' : userData.referrals >= 500 ? '8' : userData.referrals >= 400 ? '7' : userData.referrals >= 300 ? '6' : userData.referrals >= 200 ? '5' : userData.referrals >= 100 ? '4' : userData.referrals >= 50 ? '3' : userData.referrals >= 20 ? '2' : userData.referrals >= 10 ? '1' : '0'}</h3>
+                    <small className="text-white opacity-75">
+                      {userData.referrals >= 1200 ? 'Crown Legend' : userData.referrals >= 1100 ? 'Royal Diamond' : userData.referrals >= 1000 ? 'Diamond Pro' : userData.referrals >= 900 ? 'Diamond Plus' : userData.referrals >= 800 ? 'Diamond Entry' : userData.referrals >= 700 ? 'Platinum Elite' : userData.referrals >= 600 ? 'Platinum Plus' : userData.referrals >= 500 ? 'Platinum Start' : userData.referrals >= 400 ? 'Golden Pro' : userData.referrals >= 300 ? 'Golden Star' : userData.referrals >= 200 ? 'Golden Badge' : userData.referrals >= 100 ? 'Silver Premium' : userData.referrals >= 50 ? 'Silver Entry' : userData.referrals >= 20 ? 'Bronze Plus' : userData.referrals >= 10 ? 'Starter Bronze' : 'Beginner'}
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
           </Col>
         </Row>
 
@@ -141,7 +591,7 @@ const UserDashboard = () => {
                       <i className="bi bi-wallet2 text-warning me-3" style={{fontSize: '30px'}}></i>
                       <div>
                         <h6 className="text-warning mb-1">Total Balance</h6>
-                        <h3 className="text-white mb-0">₨0</h3>
+                        <h3 className="text-white mb-0">₨{userData.balance.toLocaleString()}</h3>
                       </div>
                     </div>
                   </Card.Body>
@@ -154,7 +604,7 @@ const UserDashboard = () => {
                       <i className="bi bi-graph-up text-success me-3" style={{fontSize: '30px'}}></i>
                       <div>
                         <h6 className="text-warning mb-1">Today's Earnings</h6>
-                        <h3 className="text-white mb-0">₨0</h3>
+                        <h3 className="text-white mb-0">₨{userData.todayEarnings.toLocaleString()}</h3>
                       </div>
                     </div>
                   </Card.Body>
@@ -167,25 +617,13 @@ const UserDashboard = () => {
                       <i className="bi bi-people text-info me-3" style={{fontSize: '30px'}}></i>
                       <div>
                         <h6 className="text-warning mb-1">Referrals</h6>
-                        <h3 className="text-white mb-0">0</h3>
+                        <h3 className="text-white mb-0">{userData.referrals}</h3>
                       </div>
                     </div>
                   </Card.Body>
                 </Card>
               </Col>
-              <Col lg={3} md={6} className="mb-4">
-                <Card className="admin-card">
-                  <Card.Body>
-                    <div className="d-flex align-items-center">
-                      <i className="bi bi-star-fill text-warning me-3" style={{fontSize: '30px'}}></i>
-                      <div>
-                        <h6 className="text-warning mb-1">VIP Level</h6>
-                        <h3 className="text-white mb-0">Bronze</h3>
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
+
             </Row>
 
             <Row className="p-4">
@@ -223,7 +661,19 @@ const UserDashboard = () => {
                   </Card.Header>
                   <Card.Body>
                     <div className="d-grid gap-3">
-                      <Button variant="outline-warning" size="sm">
+                      <Button 
+                        variant="outline-warning" 
+                        size="sm"
+                        onClick={() => {
+                          const referralLink = `http://localhost:5173/signup?ref=${currentUserUsername}`;
+                          navigator.clipboard.writeText(referralLink);
+                          toast.success('Referral link copied!', {
+                            position: "top-right",
+                            autoClose: 2000,
+                            theme: "dark"
+                          });
+                        }}
+                      >
                         <i className="bi bi-share me-2"></i>Share Referral Link
                       </Button>
                       <Button variant="outline-warning" size="sm">
@@ -232,57 +682,171 @@ const UserDashboard = () => {
                       <Button variant="outline-warning" size="sm">
                         <i className="bi bi-graph-up me-2"></i>View Earnings
                       </Button>
-                      <Button variant="outline-warning" size="sm">
-                        <i className="bi bi-person-plus me-2"></i>Invite Friends
-                      </Button>
                     </div>
                   </Card.Body>
                 </Card>
               </Col>
             </Row>
             
-            {announcements.length > 0 && (
-              <Row className="p-4">
-                <Col>
-                  <Card className="admin-card">
-                    <Card.Header>
-                      <h5 className="text-warning mb-0">📢 Latest Announcements</h5>
-                    </Card.Header>
-                    <Card.Body>
-                      {announcements.slice(0, 3).map(announcement => (
-                        <Card key={announcement.id} className="mb-2" style={{background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.3)'}}>
-                          <Card.Body className="py-2">
-                            <h6 className="text-warning mb-1">{announcement.title}</h6>
-                            <p className="text-white mb-1 small">{announcement.message}</p>
-                            <small className="text-warning">{new Date(announcement.createdAt).toLocaleDateString()}</small>
-                          </Card.Body>
-                        </Card>
-                      ))}
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
-            )}
+            <Row className="p-4">
+              <Col>
+                <Card className="admin-card">
+                  <Card.Header>
+                    <h5 className="text-warning mb-0">📢 Latest Announcements</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="text-center py-4">
+                      <i className="bi bi-megaphone text-warning mb-3" style={{fontSize: '40px'}}></i>
+                      <h6 className="text-white mb-2">No announcements at this time</h6>
+                      <p className="text-warning small">Check back later for updates!</p>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
           </>
         )}
 
         {activeSection === 'earnings' && (
-          <Row className="p-4">
-            <Col>
-              <Card className="admin-card">
-                <Card.Header>
-                  <h5 className="text-warning mb-0">Earnings Overview</h5>
-                </Card.Header>
-                <Card.Body>
-                  <div className="text-center py-5">
-                    <i className="bi bi-currency-dollar text-warning mb-3" style={{fontSize: '60px'}}></i>
-                    <h4 className="text-white mb-3">No Earnings Yet</h4>
-                    <p className="text-white">Start referring friends to begin earning commissions!</p>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+          <>
+            <Row className="p-4">
+              <Col>
+                <Card className="admin-card">
+                  <Card.Header>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <h5 className="text-warning mb-0">Daily Videos</h5>
+                      <div className="text-end">
+                        <span className="badge bg-info me-2">{videoStatus.dailyClicks}/10 Clicked</span>
+                        <span className="badge bg-success">{videoStatus.remainingClicks} Remaining</span>
+                      </div>
+                    </div>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="text-center mb-4">
+                      <i className="bi bi-play-btn text-warning mb-3" style={{fontSize: '50px'}}></i>
+                      <h5 className="text-white mb-2">Watch Videos & Earn</h5>
+                      <p className="text-white">Click on 10 videos daily to complete your tasks. Each video opens in a new tab.</p>
+                      <div className="progress mb-3" style={{height: '8px'}}>
+                        <div 
+                          className="progress-bar bg-warning" 
+                          role="progressbar" 
+                          style={{width: `${(videoStatus.dailyClicks / 10) * 100}%`}}
+                        ></div>
+                      </div>
+                      <small className="text-white">Progress resets every 24 hours</small>
+                    </div>
+                    
+                    {/* Rewards Section */}
+                    <div className="rewards-section mb-4">
+                      <div className="row">
+                        <div className="col-md-4 mb-3">
+                          <div className="reward-card p-3" style={{background: 'rgba(40, 167, 69, 0.1)', borderRadius: '8px', border: '1px solid rgba(40, 167, 69, 0.3)'}}>
+                            <div className="text-center">
+                              <i className="bi bi-play-btn-fill text-success mb-2" style={{fontSize: '30px'}}></i>
+                              <h6 className="text-white mb-1">Daily Video Reward</h6>
+                              <h4 className="text-success mb-1">₨14</h4>
+                              <small className="text-white">Complete 10 videos daily</small>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                          <div className="reward-card p-3" style={{background: 'rgba(255, 193, 7, 0.1)', borderRadius: '8px', border: '1px solid rgba(255, 193, 7, 0.3)'}}>
+                            <div className="text-center">
+                              <i className="bi bi-arrow-clockwise text-warning mb-2" style={{fontSize: '30px'}}></i>
+                              <h6 className="text-white mb-1">Daily Spinner</h6>
+                              <h4 className="text-warning mb-1">Up to $5</h4>
+                              <small className="text-white">Spin wheel once daily</small>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                          <div className="reward-card p-3" style={{background: 'rgba(0, 123, 255, 0.1)', borderRadius: '8px', border: '1px solid rgba(0, 123, 255, 0.3)'}}>
+                            <div className="text-center">
+                              <i className="bi bi-trophy-fill text-primary mb-2" style={{fontSize: '30px'}}></i>
+                              <h6 className="text-white mb-1">Level Rewards</h6>
+                              <h4 className="text-primary mb-1">Up to $500</h4>
+                              <small className="text-white">Referral milestones</small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {videos.length > 0 ? (
+                      <div className="row">
+                        {videos.slice(0, 10).map((video, index) => (
+                          <div key={video._id} className="col-lg-4 col-md-6 mb-4">
+                            <div className="video-card" style={{
+                              background: 'rgba(255,140,0,0.1)',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,140,0,0.3)',
+                              overflow: 'hidden',
+                              transition: 'all 0.3s ease',
+                              cursor: videoStatus.canClick ? 'pointer' : 'not-allowed',
+                              opacity: videoStatus.canClick ? 1 : 0.6
+                            }}
+                            onClick={() => handleVideoClick(video._id, video.url)}
+                            onMouseEnter={(e) => {
+                              if (videoStatus.canClick) {
+                                e.target.style.transform = 'translateY(-5px)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(255,140,0,0.3)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = 'none';
+                            }}>
+                              <div className="video-thumbnail" style={{
+                                height: '150px',
+                                background: 'linear-gradient(135deg, #ff8c00, #ff6b00)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                position: 'relative'
+                              }}>
+                                <i className="bi bi-play-circle-fill text-white" style={{fontSize: '40px'}}></i>
+                                <div className="video-number" style={{
+                                  position: 'absolute',
+                                  top: '10px',
+                                  left: '10px',
+                                  background: 'rgba(0,0,0,0.7)',
+                                  color: 'white',
+                                  padding: '5px 10px',
+                                  borderRadius: '15px',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  #{index + 1}
+                                </div>
+                              </div>
+                              <div className="p-3">
+                                <h6 className="text-white mb-2" style={{fontSize: '14px'}}>
+                                  {video.title}
+                                </h6>
+                                <p className="text-white small mb-2" style={{fontSize: '12px'}}>
+                                  {video.description}
+                                </p>
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <span className="badge bg-warning">Click to Watch</span>
+                                  <i className="bi bi-box-arrow-up-right text-warning"></i>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <i className="bi bi-camera-video text-warning mb-3" style={{fontSize: '50px'}}></i>
+                        <h6 className="text-white mb-2">No Videos Available</h6>
+                        <p className="text-white small">Videos will be added by admin soon!</p>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </>
         )}
 
         {activeSection === 'withdraw' && (
@@ -295,11 +859,43 @@ const UserDashboard = () => {
                 <Card.Body>
                   <div className="text-center py-5">
                     <i className="bi bi-arrow-up-circle text-warning mb-3" style={{fontSize: '60px'}}></i>
-                    <h4 className="text-white mb-3">Minimum Withdrawal: ₨2,800</h4>
-                    <p className="text-white">You need at least ₨2,800 to request a withdrawal.</p>
-                    <Button variant="outline-warning" disabled>
-                      <i className="bi bi-lock me-2"></i>Insufficient Balance
+                    <h4 className="text-white mb-3">Minimum Withdrawal: ₨{withdrawalData.minimumAmount.toLocaleString()}</h4>
+                    <p className="text-white">Current Balance: ₨{userData.balance.toLocaleString()}</p>
+                    
+                    <div className="mb-4">
+                      <div className="row justify-content-center">
+                        <div className="col-md-8">
+                          <div className="withdrawal-info p-3" style={{background: 'rgba(255,140,0,0.1)', borderRadius: '10px', border: '1px solid rgba(255,140,0,0.3)'}}>
+                            <h6 className="text-warning mb-2">Withdrawal Tiers:</h6>
+                            <div className="d-flex justify-content-between text-white small">
+                              <span>1st Withdrawal: ₨143 ($0.5)</span>
+                              <span className={withdrawalData.withdrawalCount === 0 ? 'text-success' : 'text-muted'}>●</span>
+                            </div>
+                            <div className="d-flex justify-content-between text-white small">
+                              <span>2nd Withdrawal: ₨285 ($1)</span>
+                              <span className={withdrawalData.withdrawalCount === 1 ? 'text-success' : 'text-muted'}>●</span>
+                            </div>
+                            <div className="d-flex justify-content-between text-white small">
+                              <span>3rd+ Withdrawal: ₨855 ($3)</span>
+                              <span className={withdrawalData.withdrawalCount >= 2 ? 'text-success' : 'text-muted'}>●</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      variant="outline-warning" 
+                      disabled={userData.balance < withdrawalData.minimumAmount}
+                      onClick={() => setShowPaymentModal(true)}
+                    >
+                      <i className={`bi ${userData.balance >= withdrawalData.minimumAmount ? 'bi-arrow-up-circle' : 'bi-lock'} me-2`}></i>
+                      {userData.balance >= withdrawalData.minimumAmount ? 'Add Payment Method' : 'Insufficient Balance'}
                     </Button>
+                    
+                    <div className="mt-3">
+                      <small style={{color: '#ccc', fontSize: '11px'}}>*1% processing fee applies</small>
+                    </div>
                   </div>
                 </Card.Body>
               </Card>
@@ -308,35 +904,504 @@ const UserDashboard = () => {
         )}
 
         {activeSection === 'referrals' && (
+          <>
+            <Row className="p-4">
+              <Col md={6} className="mb-4">
+                <Card className="admin-card">
+                  <Card.Header>
+                    <h5 className="text-warning mb-0">Share Referral Link</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="text-center py-4">
+                      <i className="bi bi-share text-warning mb-3" style={{fontSize: '50px'}}></i>
+                      <h5 className="text-white mb-3">Invite Friends & Earn</h5>
+                      <p className="text-white mb-4" style={{color: '#ffffff !important'}}>Share your ref link to start earning!</p>
+                      <div className="mb-4">
+                        <input 
+                          type="text" 
+                          className="form-control text-center" 
+                          value={`http://localhost:5173/signup?ref=${currentUserUsername}`}
+                          readOnly 
+                          style={{background: 'rgba(255,140,0,0.1)', border: '1px solid #ff8c00', color: '#fff'}}
+                          id="referralLink"
+                        />
+                      </div>
+                      <Button 
+                        className="login-button" 
+                        style={{border: 'none'}}
+                        onClick={() => {
+                          const referralLink = document.getElementById('referralLink');
+                          referralLink.select();
+                          referralLink.setSelectionRange(0, 99999);
+                          navigator.clipboard.writeText(referralLink.value);
+                          toast.success('Referral link copied to clipboard!', {
+                            position: "top-right",
+                            autoClose: 2000,
+                            theme: "dark"
+                          });
+                        }}
+                      >
+                        <i className="bi bi-copy me-2"></i>Copy Link
+                      </Button>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={6} className="mb-4">
+                <Card className="admin-card">
+                  <Card.Header>
+                    <h5 className="text-warning mb-0">My Referrals ({userReferrals.length})</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    {userReferrals.length > 0 ? (
+                      <div className="referrals-list" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                        {userReferrals.map((referral, index) => (
+                          <div key={referral._id || index} className="p-3 mb-3" style={{background: 'rgba(255,140,0,0.1)', borderRadius: '8px', border: '1px solid rgba(255,140,0,0.3)'}}>
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div className="flex-grow-1">
+                                <div className="text-white fw-bold mb-1">
+                                  <i className="bi bi-person-fill me-2 text-warning"></i>
+                                  {referral.name}
+                                </div>
+                                <div className="text-white small mb-1">
+                                  <i className="bi bi-at me-1"></i>{referral.username}
+                                </div>
+                                <div className="text-white small">
+                                  <i className="bi bi-envelope me-1"></i>{referral.email}
+                                </div>
+                              </div>
+                              <div className="text-end">
+                                <span className="badge bg-success mb-2">Active</span>
+                                <div className="text-warning small">
+                                  {new Date(referral.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <i className="bi bi-people text-warning mb-3" style={{fontSize: '50px'}}></i>
+                        <h6 className="text-white mb-2">No Referrals Yet</h6>
+                        <p className="text-white small">Share your referral link to start earning!</p>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+            
+            <Row className="p-4">
+              <Col>
+                <Card className="admin-card">
+                  <Card.Header>
+                    <h5 className="text-warning mb-0">Level System</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="level-system">
+                      <div className="row">
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(139, 69, 19, 0.1)', borderRadius: '8px', border: '1px solid rgba(139, 69, 19, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-award text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 1 - Starter Bronze</h6>
+                                <small className="text-white">10 Members (₨1,400 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(139, 69, 19, 0.15)', borderRadius: '8px', border: '1px solid rgba(139, 69, 19, 0.4)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-award-fill text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 2 - Bronze Plus</h6>
+                                <small className="text-white">20 Members (₨1,400 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(192, 192, 192, 0.1)', borderRadius: '8px', border: '1px solid rgba(192, 192, 192, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-star text-info me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 3 - Silver Entry</h6>
+                                <small className="text-white">50 Members (₨1,400 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(192, 192, 192, 0.15)', borderRadius: '8px', border: '1px solid rgba(192, 192, 192, 0.4)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-star-fill text-info me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 4 - Silver Premium</h6>
+                                <small className="text-white">100 Members (₨5,600 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(255, 215, 0, 0.1)', borderRadius: '8px', border: '1px solid rgba(255, 215, 0, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-gem text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 5 - Golden Badge</h6>
+                                <small className="text-white">200 Members (₨14,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(255, 215, 0, 0.15)', borderRadius: '8px', border: '1px solid rgba(255, 215, 0, 0.4)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-star-half text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 6 - Golden Star</h6>
+                                <small className="text-white">300 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(255, 215, 0, 0.2)', borderRadius: '8px', border: '1px solid rgba(255, 215, 0, 0.5)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-trophy text-warning me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 7 - Golden Pro</h6>
+                                <small className="text-white">400 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(229, 228, 226, 0.1)', borderRadius: '8px', border: '1px solid rgba(229, 228, 226, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-shield text-secondary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 8 - Platinum Start</h6>
+                                <small className="text-white">500 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(229, 228, 226, 0.15)', borderRadius: '8px', border: '1px solid rgba(229, 228, 226, 0.4)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-shield-fill text-secondary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 9 - Platinum Plus</h6>
+                                <small className="text-white">600 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(229, 228, 226, 0.2)', borderRadius: '8px', border: '1px solid rgba(229, 228, 226, 0.5)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-crown text-secondary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 10 - Platinum Elite</h6>
+                                <small className="text-white">700 Members (₨28,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(185, 242, 255, 0.1)', borderRadius: '8px', border: '1px solid rgba(185, 242, 255, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-diamond text-primary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 11 - Diamond Entry</h6>
+                                <small className="text-white">800 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(185, 242, 255, 0.15)', borderRadius: '8px', border: '1px solid rgba(185, 242, 255, 0.4)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-diamond-fill text-primary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 12 - Diamond Plus</h6>
+                                <small className="text-white">900 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(185, 242, 255, 0.2)', borderRadius: '8px', border: '1px solid rgba(185, 242, 255, 0.5)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-diamond-half text-primary me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 13 - Diamond Pro</h6>
+                                <small className="text-white">1000 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <div className="level-item p-3" style={{background: 'rgba(138, 43, 226, 0.1)', borderRadius: '8px', border: '1px solid rgba(138, 43, 226, 0.3)'}}>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-gem text-danger me-3" style={{fontSize: '24px'}}></i>
+                              <div>
+                                <h6 className="text-white mb-1">Level 14 - Royal Diamond</h6>
+                                <small className="text-white">1100 Members (₨7,000 Reward)</small>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-12 mb-3">
+                          <div className="level-item p-3" style={{background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2))', borderRadius: '8px', border: '2px solid #ffd700'}}>
+                            <div className="d-flex align-items-center justify-content-center">
+                              <i className="bi bi-crown-fill me-3" style={{fontSize: '30px', color: '#ffd700'}}></i>
+                              <div className="text-center">
+                                <h5 className="text-warning mb-1">Level 15 - Crown Legend</h5>
+                                <h4 className="text-success mb-0">1200 Members (₨140,000 Reward)</h4>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-center mt-4">
+                        <div className="progress-info p-3" style={{background: 'rgba(255,140,0,0.1)', borderRadius: '10px', border: '1px solid rgba(255,140,0,0.3)'}}>
+                          <h6 className="text-warning mb-3">
+                            <i className="bi bi-trophy me-2"></i>
+                            Your Progress
+                          </h6>
+                          <div className="row">
+                            <div className="col-md-4 mb-2">
+                              <div className="text-white">
+                                <strong>Current Level:</strong> Level {userData.referrals >= 1200 ? '15' : userData.referrals >= 1100 ? '14' : userData.referrals >= 1000 ? '13' : userData.referrals >= 900 ? '12' : userData.referrals >= 800 ? '11' : userData.referrals >= 700 ? '10' : userData.referrals >= 600 ? '9' : userData.referrals >= 500 ? '8' : userData.referrals >= 400 ? '7' : userData.referrals >= 300 ? '6' : userData.referrals >= 200 ? '5' : userData.referrals >= 100 ? '4' : userData.referrals >= 50 ? '3' : userData.referrals >= 20 ? '2' : userData.referrals >= 10 ? '1' : '0'}
+                              </div>
+                            </div>
+                            <div className="col-md-4 mb-2">
+                              <div className="text-success">
+                                <strong>Total Referrals:</strong> {userData.referrals}
+                              </div>
+                            </div>
+                            <div className="col-md-4 mb-2">
+                              <div className="text-info">
+                                <strong>Next Level:</strong> {userData.referrals >= 1200 ? 'Max Level!' : `${userData.referrals >= 1100 ? 1200 - userData.referrals : userData.referrals >= 1000 ? 1100 - userData.referrals : userData.referrals >= 900 ? 1000 - userData.referrals : userData.referrals >= 800 ? 900 - userData.referrals : userData.referrals >= 700 ? 800 - userData.referrals : userData.referrals >= 600 ? 700 - userData.referrals : userData.referrals >= 500 ? 600 - userData.referrals : userData.referrals >= 400 ? 500 - userData.referrals : userData.referrals >= 300 ? 400 - userData.referrals : userData.referrals >= 200 ? 300 - userData.referrals : userData.referrals >= 100 ? 200 - userData.referrals : userData.referrals >= 50 ? 100 - userData.referrals : userData.referrals >= 20 ? 50 - userData.referrals : userData.referrals >= 10 ? 20 - userData.referrals : 10 - userData.referrals} more needed`}
+                              </div>
+                            </div>
+                          </div>
+                          {userData.referrals < 1200 && (
+                            <div className="progress mt-3" style={{height: '8px'}}>
+                              <div 
+                                className="progress-bar bg-warning" 
+                                role="progressbar" 
+                                style={{
+                                  width: `${userData.referrals >= 1100 ? ((userData.referrals - 1100) / 100) * 100 : userData.referrals >= 1000 ? ((userData.referrals - 1000) / 100) * 100 : userData.referrals >= 900 ? ((userData.referrals - 900) / 100) * 100 : userData.referrals >= 800 ? ((userData.referrals - 800) / 100) * 100 : userData.referrals >= 700 ? ((userData.referrals - 700) / 100) * 100 : userData.referrals >= 600 ? ((userData.referrals - 600) / 100) * 100 : userData.referrals >= 500 ? ((userData.referrals - 500) / 100) * 100 : userData.referrals >= 400 ? ((userData.referrals - 400) / 100) * 100 : userData.referrals >= 300 ? ((userData.referrals - 300) / 100) * 100 : userData.referrals >= 200 ? ((userData.referrals - 200) / 100) * 100 : userData.referrals >= 100 ? ((userData.referrals - 100) / 100) * 100 : userData.referrals >= 50 ? ((userData.referrals - 50) / 50) * 100 : userData.referrals >= 20 ? ((userData.referrals - 20) / 30) * 100 : userData.referrals >= 10 ? ((userData.referrals - 10) / 10) * 100 : (userData.referrals / 10) * 100}%`
+                                }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </>
+        )}
+
+        {activeSection === 'spinner' && (
           <Row className="p-4">
             <Col>
               <Card className="admin-card">
                 <Card.Header>
-                  <h5 className="text-warning mb-0">Referral Program</h5>
+                  <h5 className="text-warning mb-0">Daily Spinner</h5>
                 </Card.Header>
                 <Card.Body>
-                  <div className="text-center py-5">
-                    <i className="bi bi-people text-warning mb-3" style={{fontSize: '60px'}}></i>
-                    <h4 className="text-white mb-3">Invite Friends & Earn</h4>
-                    <p className="text-white mb-4">Share your referral link and earn commission on every signup!</p>
-                    <div className="mb-4">
-                      <input 
-                        type="text" 
-                        className="form-control text-center" 
-                        value="https://profitpro.com/ref/USER123" 
-                        readOnly 
-                        style={{background: 'rgba(255,140,0,0.1)', border: '1px solid #ff8c00', color: '#fff'}}
-                      />
+                  <div className="text-center py-4">
+                    <div className="mb-4" style={{display: 'flex', justifyContent: 'center'}}>
+                      <div className="wheel-container" style={{position: 'relative'}}>
+                        <div 
+                          className="wheel"
+                          style={{
+                            width: '300px',
+                            height: '300px',
+                            borderRadius: '50%',
+                            border: '5px solid #ff8c00',
+                            position: 'relative',
+                            background: 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff, #5f27cd, #95a5a6)',
+                            backgroundSize: '100% 100%',
+                            boxShadow: '0 0 30px rgba(255, 140, 0, 0.5), inset 0 0 30px rgba(0, 0, 0, 0.2)',
+                            transition: spinnerData.isSpinning ? 'transform 3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+                            transform: spinnerData.isSpinning ? 'rotate(1800deg)' : 'rotate(0deg)'
+                          }}
+                        >
+                          <div className="wheel-segments">
+                            <div style={{position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontSize: '18px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$0.05</div>
+                            <div style={{position: 'absolute', top: '60px', right: '60px', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$0.1</div>
+                            <div style={{position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$0.2</div>
+                            <div style={{position: 'absolute', bottom: '60px', right: '60px', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$0.6</div>
+                            <div style={{position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$0.8</div>
+                            <div style={{position: 'absolute', bottom: '60px', left: '60px', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$1</div>
+                            <div style={{position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$3</div>
+                            <div style={{position: 'absolute', top: '60px', left: '60px', color: 'white', fontSize: '20px', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.8)', zIndex: 2}}>$5</div>
+
+                          </div>
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '80px',
+                            height: '80px',
+                            background: 'linear-gradient(135deg, #ff8c00, #ff6b00)',
+                            borderRadius: '50%',
+                            border: '4px solid white',
+                            boxShadow: '0 0 15px rgba(0, 0, 0, 0.5)',
+                            zIndex: 3,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            textAlign: 'center'
+                          }}>
+                            Try Again
+                          </div>
+                        </div>
+                        <div style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: '0',
+                          height: '0',
+                          borderLeft: '12px solid transparent',
+                          borderRight: '12px solid transparent',
+                          borderTop: '25px solid #ff8c00',
+                          zIndex: 4,
+                          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                        }}></div>
+                      </div>
                     </div>
-                    <Button className="login-button" style={{border: 'none'}}>
-                      <i className="bi bi-copy me-2"></i>Copy Link
-                    </Button>
+                    
+                    <div className="mb-4">
+                      <h6 className="text-warning mb-2">Prizes:</h6>
+                      <div className="d-flex flex-wrap justify-content-center gap-2">
+                        <span className="badge bg-success">$0.1</span>
+                        <span className="badge bg-success">$0.2</span>
+                        <span className="badge bg-warning">$0.05</span>
+                        <span className="badge bg-warning">$0.6</span>
+                        <span className="badge bg-info">$0.8</span>
+                        <span className="badge bg-info">$1</span>
+                        <span className="badge bg-danger">$3</span>
+                        <span className="badge bg-danger">$5</span>
+                        <span className="badge bg-secondary">Try Again</span>
+                      </div>
+                    </div>
+                    
+                    {spinnerData.canSpin ? (
+                      <Button 
+                        className="login-button" 
+                        style={{border: 'none'}}
+                        onClick={handleSpin}
+                        disabled={spinnerData.isSpinning}
+                      >
+                        <i className={`bi ${spinnerData.isSpinning ? 'bi-arrow-clockwise' : 'bi-play-circle'} me-2`}></i>
+                        {spinnerData.isSpinning ? 'Spinning...' : 'Spin Wheel'}
+                      </Button>
+                    ) : (
+                      <div>
+                        <Button variant="outline-warning" disabled>
+                          <i className="bi bi-clock me-2"></i>Already Spun Today
+                        </Button>
+                        {spinnerData.nextSpinTime && (
+                          <p className="text-warning mt-2 small">
+                            Next spin available: {new Date(spinnerData.nextSpinTime).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {spinnerData.result && (
+                      <div className="mt-4">
+                        <h5 className="text-success">
+                          {spinnerData.result === 'try again' ? 'Try Again Tomorrow!' : `You Won $${spinnerData.result}!`}
+                        </h5>
+                      </div>
+                    )}
                   </div>
                 </Card.Body>
               </Card>
             </Col>
           </Row>
         )}
+
+        {activeSection === 'history' && (
+          <Row className="p-4">
+            <Col>
+              <Card className="admin-card">
+                <Card.Header>
+                  <h5 className="text-warning mb-0">Transaction History</h5>
+                </Card.Header>
+                <Card.Body>
+                  {transactions.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-dark table-striped">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Balance After</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {transactions.map((transaction, index) => (
+                            <tr key={index}>
+                              <td>{new Date(transaction.date).toLocaleString()}</td>
+                              <td>
+                                <span className={`badge ${transaction.type === 'deposit' ? 'bg-success' : 'bg-danger'}`}>
+                                  {transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
+                                </span>
+                              </td>
+                              <td className={transaction.type === 'deposit' ? 'text-success' : 'text-danger'}>
+                                {transaction.type === 'deposit' ? '+' : '-'}₨{transaction.amount.toLocaleString()}
+                              </td>
+                              <td>{transaction.description}</td>
+                              <td>
+                                <span className={`badge ${
+                                  transaction.status === 'pending' ? 'bg-warning' : 
+                                  transaction.status === 'completed' ? 'bg-success' : 
+                                  transaction.status === 'rejected' ? 'bg-danger' : 'bg-secondary'
+                                }`}>
+                                  {transaction.status || 'Completed'}
+                                </span>
+                              </td>
+                              <td>₨{transaction.balanceAfter.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-5">
+                      <i className="bi bi-clock-history text-warning mb-3" style={{fontSize: '60px'}}></i>
+                      <h4 className="text-white mb-3">No Transaction History</h4>
+                      <p className="text-white">Your transaction history will appear here once you make deposits or withdrawals.</p>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
+
 
         {activeSection === 'contact' && (
           <Row className="p-4">
@@ -365,45 +1430,30 @@ const UserDashboard = () => {
                       <Col md={6}>
                         <div className="input-wrapper mb-3">
                           <Form.Control
-                            type="text"
-                            value={contactForm.username}
-                            onChange={(e) => setContactForm({...contactForm, username: e.target.value})}
-                            className="form-input"
-                          />
-                          <label className={`input-label ${contactForm.username ? 'active' : ''}`}>
-                            Username
-                          </label>
-                        </div>
-                      </Col>
-                    </Row>
-                    <Row>
-                      <Col md={6}>
-                        <div className="input-wrapper mb-3">
-                          <Form.Control
                             type="email"
                             value={contactForm.email}
                             onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
                             className="form-input"
+                            required
                           />
                           <label className={`input-label ${contactForm.email ? 'active' : ''}`}>
-                            Email
-                          </label>
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="input-wrapper mb-3">
-                          <Form.Control
-                            type="tel"
-                            value={contactForm.phone}
-                            onChange={(e) => setContactForm({...contactForm, phone: e.target.value})}
-                            className="form-input"
-                          />
-                          <label className={`input-label ${contactForm.phone ? 'active' : ''}`}>
-                            Phone Number
+                            Email Address *
                           </label>
                         </div>
                       </Col>
                     </Row>
+                    <div className="input-wrapper mb-3">
+                      <Form.Control
+                        type="text"
+                        value={contactForm.subject}
+                        onChange={(e) => setContactForm({...contactForm, subject: e.target.value})}
+                        className="form-input"
+                        required
+                      />
+                      <label className={`input-label ${contactForm.subject ? 'active' : ''}`}>
+                        Subject *
+                      </label>
+                    </div>
                     <div className="input-wrapper mb-4">
                       <Form.Control
                         as="textarea"
@@ -417,8 +1467,8 @@ const UserDashboard = () => {
                         Message *
                       </label>
                     </div>
-                    <Button type="submit" className="login-button" style={{border: 'none'}}>
-                      <i className="bi bi-send me-2"></i>Send Message
+                    <Button type="submit" className="login-button" style={{border: 'none'}} disabled={loading}>
+                      <i className="bi bi-send me-2"></i>{loading ? 'Sending...' : 'Send Message'}
                     </Button>
                   </Form>
                 </Card.Body>
@@ -427,6 +1477,219 @@ const UserDashboard = () => {
           </Row>
         )}
       </Container>
+      
+      {/* Profile Modal */}
+      <Modal show={showProfileModal} onHide={() => setShowProfileModal(false)} centered>
+        <Modal.Header closeButton className="bg-dark border-warning">
+          <Modal.Title className="text-warning">
+            <i className="bi bi-person-circle me-2"></i>User Profile
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          <div className="text-center mb-4">
+            <div className="profile-avatar mb-3">
+              <i className="bi bi-person-circle text-warning" style={{fontSize: '80px'}}></i>
+            </div>
+          </div>
+          
+          <div className="profile-info">
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Username:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-white">{userProfile.username}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Full Name:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-white">{userProfile.fullName}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Email:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-white">{userProfile.email}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">User ID:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-white">{userProfile.userId}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Join Date:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-white">{userProfile.joinDate}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Balance:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-success">₨{userData.balance.toLocaleString()}</span>
+              </div>
+            </div>
+            
+            <div className="row mb-3">
+              <div className="col-4">
+                <strong className="text-warning">Total Referrals:</strong>
+              </div>
+              <div className="col-8">
+                <span className="text-info">{userData.referrals}</span>
+              </div>
+            </div>
+            
+            {userData.referrals > 0 && (
+              <div className="row mb-3">
+                <div className="col-12">
+                  <strong className="text-warning">Referral List:</strong>
+                  <div className="mt-2" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                    {userReferrals.length > 0 ? (
+                      <div className="referrals-list">
+                        {userReferrals.map((referral, index) => (
+                          <div key={referral._id || index} className="p-2 mb-2" style={{background: 'rgba(255,140,0,0.1)', borderRadius: '5px', border: '1px solid rgba(255,140,0,0.3)'}}>
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div className="flex-grow-1">
+                                <div className="text-white fw-bold">
+                                  <i className="bi bi-person-fill me-2 text-warning"></i>
+                                  {referral.name}
+                                </div>
+                                <div className="text-muted small mt-1">
+                                  <i className="bi bi-at me-1"></i>{referral.username}
+                                </div>
+                                <div className="text-muted small">
+                                  <i className="bi bi-envelope me-1"></i>{referral.email}
+                                </div>
+                              </div>
+                              <div className="text-end">
+                                <span className="badge bg-success mb-1">Active</span>
+                                <div className="text-warning small">
+                                  {new Date(referral.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-3">
+                        <i className="bi bi-hourglass-split text-warning"></i>
+                        <p className="text-white small mb-0">Loading referrals...</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-warning">
+          <Button variant="outline-info" size="sm" onClick={() => {
+            fetchUserData();
+            fetchUserReferrals();
+            toast.info('Profile refreshed!', {
+              position: "top-right",
+              autoClose: 2000,
+              theme: "dark"
+            });
+          }}>
+            <i className="bi bi-arrow-clockwise me-1"></i>Refresh
+          </Button>
+          <Button variant="outline-warning" onClick={() => setShowProfileModal(false)}>
+            <i className="bi bi-x-circle me-1"></i>Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Payment Method Modal */}
+      <Modal show={showPaymentModal} onHide={() => setShowPaymentModal(false)} centered>
+        <Modal.Header closeButton className="bg-dark border-warning">
+          <Modal.Title className="text-warning">
+            <i className="bi bi-credit-card me-2"></i>Add Payment Method
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          <div className="text-center mb-4">
+            <h6 className="text-warning">Withdrawal Amount: ₨{withdrawalData.minimumAmount.toLocaleString()}</h6>
+            <small className="text-white">Current Balance: ₨{userData.balance.toLocaleString()}</small>
+            <div className="mt-2">
+              <small style={{color: '#ccc', fontSize: '11px'}}>*1% processing fee will be deducted</small>
+            </div>
+          </div>
+          
+          <Form onSubmit={handlePaymentSubmit}>
+            <div className="input-wrapper mb-3">
+              <Form.Control
+                type="text"
+                value={paymentForm.accountNumber}
+                onChange={(e) => setPaymentForm({...paymentForm, accountNumber: e.target.value})}
+                className="form-input"
+                required
+              />
+              <label className={`input-label ${paymentForm.accountNumber ? 'active' : ''}`}>
+                Account Number *
+              </label>
+            </div>
+            
+            <div className="input-wrapper mb-3">
+              <Form.Control
+                type="text"
+                value={paymentForm.accountName}
+                onChange={(e) => setPaymentForm({...paymentForm, accountName: e.target.value})}
+                className="form-input"
+                required
+              />
+              <label className={`input-label ${paymentForm.accountName ? 'active' : ''}`}>
+                Account Name *
+              </label>
+            </div>
+            
+            <div className="input-wrapper mb-4">
+              <Form.Control
+                type="text"
+                value={paymentForm.bankName}
+                onChange={(e) => setPaymentForm({...paymentForm, bankName: e.target.value})}
+                className="form-input"
+                required
+              />
+              <label className={`input-label ${paymentForm.bankName ? 'active' : ''}`}>
+                Bank Name *
+              </label>
+            </div>
+            
+            <div className="d-flex gap-2">
+              <Button type="submit" className="login-button" style={{border: 'none'}} disabled={loading}>
+                <i className="bi bi-check-circle me-1"></i>
+                {loading ? 'Submitting...' : 'Submit Request'}
+              </Button>
+              <Button variant="outline-secondary" onClick={() => {
+                setPaymentForm({ accountNumber: '', accountName: '', bankName: '' });
+                setShowPaymentModal(false);
+              }}>
+                <i className="bi bi-x-circle me-1"></i>Cancel
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
       <ToastContainer />
     </div>
   );

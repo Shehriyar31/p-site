@@ -1,6 +1,6 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
@@ -11,17 +11,54 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const SignUpForm = ({ onSignupComplete }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStatus, setReferralStatus] = useState(null); // null, 'valid', 'invalid'
   const [loading, setLoading] = useState(false);
+
+  // Check for referral code in URL and set it
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+      validateReferralCode(refCode);
+    }
+  }, [searchParams]);
+
+  // Validate referral code
+  const validateReferralCode = async (code) => {
+    if (!code) {
+      setReferralStatus(null);
+      return;
+    }
+    
+    try {
+      const response = await authAPI.validateReferral(code);
+      setReferralStatus(response.data.valid ? 'valid' : 'invalid');
+    } catch (error) {
+      setReferralStatus('invalid');
+    }
+  };
+
+  // Handle referral code change
+  const handleReferralChange = (value) => {
+    setReferralCode(value);
+    if (value) {
+      validateReferralCode(value);
+    } else {
+      setReferralStatus(null);
+    }
+  };
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (!fullName || !username || !email || !phone || !password) {
-      toast.error('Please fill all required fields', {
+    if (!fullName || !username || !email || !phone || !password || !referralCode) {
+      toast.error('Please fill all required fields including referral code', {
         position: "top-right",
         autoClose: 3000,
         theme: "dark"
@@ -45,7 +82,8 @@ const SignUpForm = ({ onSignupComplete }) => {
         username,
         email,
         phone,
-        password
+        password,
+        referralCode
       };
       
       const response = await authAPI.register(userData);
@@ -178,6 +216,39 @@ const SignUpForm = ({ onSignupComplete }) => {
                   <label htmlFor="password" className={`input-label ${password ? 'active' : ''}`}>
                     Password
                   </label>
+                </div>
+
+                <div className="input-wrapper">
+                  <Form.Control
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => handleReferralChange(e.target.value)}
+                    className={`form-input ${referralStatus === 'invalid' ? 'is-invalid' : referralStatus === 'valid' ? 'is-valid' : ''}`}
+                    id="referralCode"
+                    required
+                    disabled={!!searchParams.get('ref')}
+                  />
+                  <label htmlFor="referralCode" className={`input-label ${referralCode ? 'active' : ''}`}>
+                    Referral Code *
+                  </label>
+                  {referralStatus === 'valid' && (
+                    <small className="text-success mt-1 d-block">
+                      <i className="bi bi-check-circle me-1"></i>
+                      Valid referral code
+                    </small>
+                  )}
+                  {referralStatus === 'invalid' && (
+                    <small className="text-danger mt-1 d-block">
+                      <i className="bi bi-x-circle me-1"></i>
+                      Invalid referral code
+                    </small>
+                  )}
+                  {searchParams.get('ref') && referralStatus === 'valid' && (
+                    <small className="text-success mt-1 d-block">
+                      <i className="bi bi-check-circle me-1"></i>
+                      Referral code applied from link
+                    </small>
+                  )}
                 </div>
                 
                 <Button style={{border:'none'}} type="submit" className="login-button" disabled={loading}>

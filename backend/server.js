@@ -45,6 +45,8 @@ app.set('io', io);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/requests', require('./routes/requests'));
+app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/videos', require('./routes/videos'));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

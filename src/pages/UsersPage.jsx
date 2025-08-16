@@ -23,7 +23,10 @@ const UsersPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [referralTree, setReferralTree] = useState([]);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
   const [cashTransaction, setCashTransaction] = useState({
     type: 'deposit',
     amount: '',
@@ -35,7 +38,7 @@ const UsersPage = () => {
     email: '',
     phone: '',
     password: '',
-    paymentMethod: 'JazzCash',
+    paymentMethod: 'Easypaisa',
     role: 'user',
     status: 'active'
   });
@@ -99,6 +102,28 @@ const UsersPage = () => {
     setSelectedUser(user);
     setCashTransaction({ type: 'deposit', amount: '', description: '' });
     setShowCashModal(true);
+  };
+
+  const handleViewReferrals = async (user) => {
+    setSelectedUser(user);
+    setLoadingReferrals(true);
+    setShowReferralModal(true);
+    
+    try {
+      const response = await userAPI.getUserReferrals(user._id);
+      if (response.data.success) {
+        setReferralTree(response.data.referrals || []);
+      }
+    } catch (error) {
+      console.error('Fetch referrals error:', error);
+      toast.error('Failed to load referrals', {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "dark"
+      });
+    } finally {
+      setLoadingReferrals(false);
+    }
   };
 
   const handleEdit = (user) => {
@@ -171,7 +196,7 @@ const UsersPage = () => {
           theme: "dark"
         });
         
-        setNewUser({ fullName: '', username: '', email: '', phone: '', password: '', paymentMethod: 'JazzCash', role: 'user', status: 'active' });
+        setNewUser({ fullName: '', username: '', email: '', phone: '', password: '', paymentMethod: 'Easypaisa', role: 'user', status: 'active' });
         setShowModal(false);
         fetchUsers(); // Refresh users list
       }
@@ -258,7 +283,8 @@ const UsersPage = () => {
       
       const response = await userAPI.updateBalance(selectedUser._id, {
         amount,
-        type: cashTransaction.type
+        type: cashTransaction.type,
+        description: cashTransaction.description
       });
       
       if (response.data.success) {
@@ -480,6 +506,15 @@ const UsersPage = () => {
                         </Button>
                         <Button 
                           size="sm" 
+                          className="action-btn referral-btn"
+                          onClick={() => handleViewReferrals(user)}
+                          title="View Referral Tree"
+                          style={{background: '#17a2b8', border: '1px solid #17a2b8'}}
+                        >
+                          <i className="bi bi-diagram-3"></i>
+                        </Button>
+                        <Button 
+                          size="sm" 
                           className="action-btn edit-btn"
                           onClick={() => handleEdit(user)}
                           title="Edit User"
@@ -589,11 +624,9 @@ const UsersPage = () => {
                 onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
                 className="form-input modal-select"
               >
-                <option value="JazzCash">JazzCash</option>
-                <option value="EasyPaisa">EasyPaisa</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="UBL Omni">UBL Omni</option>
-                <option value="HBL Konnect">HBL Konnect</option>
+                <option value="Easypaisa">Easypaisa</option>
+                <option value="SadaPay">SadaPay</option>
+                <option value="Bank Account">Bank Account</option>
               </Form.Select>
               <small className="text-warning">Payment Method</small>
             </div>
@@ -829,6 +862,86 @@ const UsersPage = () => {
             </div>
           </Form>
         </Modal.Body>
+      </Modal>
+      
+      {/* Referral Tree Modal */}
+      <Modal show={showReferralModal} onHide={() => setShowReferralModal(false)} centered size="lg">
+        <Modal.Header closeButton style={{background: 'rgba(30, 30, 30, 0.95)', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+          <Modal.Title className="text-warning">
+            <i className="bi bi-diagram-3 me-2"></i>
+            Referral Tree - {selectedUser?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{background: 'rgba(30, 30, 30, 0.95)', border: '1px solid rgba(255, 140, 0, 0.3)', maxHeight: '500px', overflowY: 'auto'}}>
+          {loadingReferrals ? (
+            <div className="text-center py-4">
+              <div className="spinner-border text-warning" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="text-white mt-3">Loading referral tree...</p>
+            </div>
+          ) : referralTree.length > 0 ? (
+            <div className="referral-tree">
+              <div className="tree-header mb-4 p-3" style={{background: 'rgba(255,140,0,0.1)', borderRadius: '8px', border: '1px solid rgba(255,140,0,0.3)'}}>
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-person-circle text-warning me-3" style={{fontSize: '40px'}}></i>
+                  <div>
+                    <h5 className="text-white mb-1">{selectedUser?.name}</h5>
+                    <p className="text-warning mb-0">@{selectedUser?.username} - Total Referrals: {referralTree.length}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="tree-content">
+                {referralTree.map((referral, index) => (
+                  <div key={referral._id} className="referral-item mb-3 p-3" style={{background: 'rgba(23, 162, 184, 0.1)', borderRadius: '8px', border: '1px solid rgba(23, 162, 184, 0.3)', marginLeft: '20px'}}>
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center mb-2">
+                          <i className="bi bi-arrow-return-right text-info me-2"></i>
+                          <h6 className="text-white mb-0">{referral.name}</h6>
+                          <Badge bg="info" className="ms-2">Level 1</Badge>
+                        </div>
+                        <div className="referral-details">
+                          <div className="text-white small mb-1">
+                            <i className="bi bi-at me-1"></i>{referral.username}
+                          </div>
+                          <div className="text-white small mb-1">
+                            <i className="bi bi-envelope me-1"></i>{referral.email}
+                          </div>
+                          <div className="text-white small">
+                            <i className="bi bi-calendar me-1"></i>Joined: {new Date(referral.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-end">
+                        <Button 
+                          size="sm" 
+                          variant="outline-info"
+                          onClick={() => handleViewReferrals({_id: referral._id, name: referral.name, username: referral.username})}
+                          title="View their referrals"
+                        >
+                          <i className="bi bi-diagram-3"></i>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-5">
+              <i className="bi bi-diagram-3 text-warning mb-3" style={{fontSize: '60px'}}></i>
+              <h5 className="text-white mb-2">No Referrals Found</h5>
+              <p className="text-white">This user hasn't referred anyone yet.</p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer style={{background: 'rgba(30, 30, 30, 0.95)', border: '1px solid rgba(255, 140, 0, 0.3)'}}>
+          <Button variant="outline-warning" onClick={() => setShowReferralModal(false)}>
+            <i className="bi bi-x-circle me-1"></i>Close
+          </Button>
+        </Modal.Footer>
       </Modal>
       
       <ToastContainer />
