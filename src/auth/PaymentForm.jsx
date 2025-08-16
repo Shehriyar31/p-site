@@ -209,6 +209,14 @@ const PaymentForm = () => {
                   <p className="instruction-text">
                     Send <strong>3$ (865 PKR)</strong> to the selected account and provide your transaction ID with screenshot proof below.
                   </p>
+                  <div className="service-badges mt-3">
+                    <span className="badge bg-success me-2">
+                      <i className="bi bi-clock me-1"></i>24/7 Deposit Available
+                    </span>
+                    <span className="badge bg-warning text-dark">
+                      <i className="bi bi-lightning-fill me-1"></i>Instant Activation
+                    </span>
+                  </div>
                 </div>
               </div>
               

@@ -57,6 +57,7 @@ const UserDashboard = () => {
     withdrawalCount: 0,
     minimumAmount: 143
   });
+  const [customAmount, setCustomAmount] = useState('');
   const [videos, setVideos] = useState([]);
   const [videoStatus, setVideoStatus] = useState({
     dailyClicks: 0,
@@ -346,10 +347,36 @@ const UserDashboard = () => {
         }
       });
       
+      socket.on('userStatusChanged', (data) => {
+        if (data.userId === currentUserId) {
+          if (data.accountStatus === 'approved') {
+            toast.success('🎉 Account Activated! Welcome to ProfitPro!', {
+              position: "top-center",
+              autoClose: 5000,
+              theme: "dark",
+              style: {
+                background: 'linear-gradient(135deg, #28a745, #20c997)',
+                color: '#fff',
+                fontWeight: 'bold'
+              }
+            });
+            // Refresh user data
+            fetchUserData();
+          } else if (data.accountStatus === 'rejected') {
+            toast.error('⚠️ Account status updated. Please contact support.', {
+              position: "top-center",
+              autoClose: 5000,
+              theme: "dark"
+            });
+          }
+        }
+      });
+      
       return () => {
         socket.off('balanceUpdate');
         socket.off('userUpdated');
         socket.off('levelUpNotification');
+        socket.off('userStatusChanged');
       };
     }
     
@@ -415,7 +442,8 @@ const UserDashboard = () => {
   const getMinimumWithdrawal = (count) => {
     if (count === 0) return 143; // $0.5
     if (count === 1) return 285; // $1
-    return 855; // $3 for all subsequent withdrawals
+    if (count === 2) return 855; // $3
+    return 1400; // $5 minimum for 4th+ withdrawals
   };
 
   const handlePaymentSubmit = async (e) => {
@@ -442,9 +470,11 @@ const UserDashboard = () => {
     setLoading(true);
     
     try {
+      const finalAmount = withdrawalData.withdrawalCount >= 3 ? parseInt(customAmount) : withdrawalData.minimumAmount;
+      
       const withdrawalRequest = {
         userId: currentUserId,
-        amount: withdrawalData.minimumAmount,
+        amount: finalAmount,
         accountNumber: paymentForm.accountNumber,
         accountName: paymentForm.accountName,
         bankName: paymentForm.bankName,
@@ -467,6 +497,7 @@ const UserDashboard = () => {
         }));
         
         setPaymentForm({ accountNumber: '', accountName: '', bankName: '' });
+        setCustomAmount('');
         setShowPaymentModal(false);
         
         // Refresh all data
@@ -919,8 +950,18 @@ const UserDashboard = () => {
                 <Card.Body>
                   <div className="text-center py-5">
                     <i className="bi bi-arrow-up-circle text-warning mb-3" style={{fontSize: '60px'}}></i>
-                    <h4 className="text-white mb-3">Minimum Withdrawal: ₨{withdrawalData.minimumAmount.toLocaleString()}</h4>
+                    <h4 className="text-white mb-3">
+                      {withdrawalData.withdrawalCount >= 3 ? 'Custom Withdrawal Amount' : `Minimum Withdrawal: ₨${withdrawalData.minimumAmount.toLocaleString()}`}
+                    </h4>
                     <p className="text-white">Current Balance: ₨{userData.balance.toLocaleString()}</p>
+                    <div className="mb-3">
+                      <span className="badge bg-success me-2">
+                        <i className="bi bi-clock me-1"></i>24/7 Withdrawal Available
+                      </span>
+                      <span className="badge bg-info">
+                        <i className="bi bi-lightning-fill me-1"></i>Fast Processing
+                      </span>
+                    </div>
                     
                     <div className="mb-4">
                       <div className="row justify-content-center">
@@ -936,21 +977,53 @@ const UserDashboard = () => {
                               <span className={withdrawalData.withdrawalCount === 1 ? 'text-success' : 'text-muted'}>●</span>
                             </div>
                             <div className="d-flex justify-content-between text-white small">
-                              <span>3rd+ Withdrawal: ₨855 ($3)</span>
-                              <span className={withdrawalData.withdrawalCount >= 2 ? 'text-success' : 'text-muted'}>●</span>
+                              <span>3rd Withdrawal: ₨855 ($3)</span>
+                              <span className={withdrawalData.withdrawalCount === 2 ? 'text-success' : 'text-muted'}>●</span>
+                            </div>
+                            <div className="d-flex justify-content-between text-white small">
+                              <span>4th+ Withdrawal: Min ₨1,400 ($5) - Custom Amount</span>
+                              <span className={withdrawalData.withdrawalCount >= 3 ? 'text-success' : 'text-muted'}>●</span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
                     
+                    {withdrawalData.withdrawalCount >= 3 && (
+                      <div className="mb-4">
+                        <div className="input-wrapper">
+                          <input
+                            type="number"
+                            value={customAmount}
+                            onChange={(e) => setCustomAmount(e.target.value)}
+                            className="form-control text-center"
+                            placeholder="Enter amount in PKR"
+                            min="1400"
+                            style={{background: 'rgba(255,140,0,0.1)', border: '1px solid #ff8c00', color: '#fff'}}
+                          />
+                        </div>
+                        <small className="text-warning d-block text-center mt-2">
+                          Minimum: ₨1,400 ($5) | Maximum: Your Balance
+                        </small>
+                      </div>
+                    )}
+                    
                     <Button 
                       variant="outline-warning" 
-                      disabled={userData.balance < withdrawalData.minimumAmount}
+                      disabled={withdrawalData.withdrawalCount >= 3 ? 
+                        (!customAmount || parseInt(customAmount) < 1400 || parseInt(customAmount) > userData.balance) :
+                        userData.balance < withdrawalData.minimumAmount
+                      }
                       onClick={() => setShowPaymentModal(true)}
                     >
-                      <i className={`bi ${userData.balance >= withdrawalData.minimumAmount ? 'bi-arrow-up-circle' : 'bi-lock'} me-2`}></i>
-                      {userData.balance >= withdrawalData.minimumAmount ? 'Add Payment Method' : 'Insufficient Balance'}
+                      <i className={`bi ${(withdrawalData.withdrawalCount >= 3 ? 
+                        (customAmount && parseInt(customAmount) >= 1400 && parseInt(customAmount) <= userData.balance) :
+                        userData.balance >= withdrawalData.minimumAmount) ? 'bi-arrow-up-circle' : 'bi-lock'} me-2`}></i>
+                      {withdrawalData.withdrawalCount >= 3 ? 
+                        (!customAmount || parseInt(customAmount) < 1400 ? 'Enter Valid Amount (Min ₨1,400)' :
+                         parseInt(customAmount) > userData.balance ? 'Insufficient Balance' : 'Add Payment Method') :
+                        (userData.balance >= withdrawalData.minimumAmount ? 'Add Payment Method' : 'Insufficient Balance')
+                      }
                     </Button>
                     
                     <div className="mt-3">

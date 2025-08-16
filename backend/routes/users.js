@@ -270,6 +270,16 @@ router.put('/:id', async (req, res) => {
     // Emit real-time update
     const io = req.app.get('io');
     io.emit('userUpdated', userResponse);
+    
+    // If status changed, emit specific status update to the user
+    if (updates.accountStatus || updates.status) {
+      io.emit('userStatusChanged', {
+        userId: id,
+        accountStatus: userResponse.accountStatus,
+        status: userResponse.status,
+        message: userResponse.accountStatus === 'approved' ? 'Your account has been activated!' : 'Your account status has been updated'
+      });
+    }
 
     res.json({ success: true, user: userResponse });
   } catch (error) {

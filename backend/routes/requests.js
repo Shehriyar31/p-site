@@ -327,6 +327,45 @@ router.post('/withdrawal', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Validate withdrawal amount based on withdrawal count
+    const currentWithdrawalCount = user.withdrawalCount || 0;
+    let minimumAmount;
+    
+    if (currentWithdrawalCount === 0) {
+      minimumAmount = 143; // $0.5
+      if (amount !== 143) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `1st withdrawal must be exactly ₨143 ($0.5)` 
+        });
+      }
+    } else if (currentWithdrawalCount === 1) {
+      minimumAmount = 285; // $1
+      if (amount !== 285) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `2nd withdrawal must be exactly ₨285 ($1)` 
+        });
+      }
+    } else if (currentWithdrawalCount === 2) {
+      minimumAmount = 855; // $3
+      if (amount !== 855) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `3rd withdrawal must be exactly ₨855 ($3)` 
+        });
+      }
+    } else {
+      // 4th+ withdrawal - custom amount with minimum $5 (₨1400)
+      minimumAmount = 1400; // $5
+      if (amount < 1400) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `4th+ withdrawal minimum amount is ₨1,400 ($5)` 
+        });
+      }
+    }
+    
     // Check balance
     if (user.balance < amount) {
       return res.status(400).json({ 
@@ -373,7 +412,7 @@ router.post('/withdrawal', async (req, res) => {
       accountName,
       bankName,
       withdrawalCount: user.withdrawalCount,
-      description: `Withdrawal request - ${user.withdrawalCount === 1 ? '1st' : user.withdrawalCount === 2 ? '2nd' : '3rd+'} withdrawal`
+      description: `Withdrawal request - ${user.withdrawalCount === 1 ? '1st' : user.withdrawalCount === 2 ? '2nd' : user.withdrawalCount === 3 ? '3rd' : '4th+'} withdrawal`
     });
 
     await request.save();
